@@ -34,8 +34,10 @@ VpxVideoStreamReader *vpx_video_stream_reader_open(const uint8_t *header);
 // vpx_video_reader_open() call.
 void vpx_video_stream_reader_close(VpxVideoStreamReader *reader);
 
-// Reads frame from the file and stores it in internal buffer.
-int vpx_video_stream_reader_read_frame(VpxVideoStreamReader *reader);
+// Read the frame if possible from the chunk of bytes presented
+// and stores it in internal buffer.
+int vpx_video_stream_reader_read_frame(const uint8_t *buf, uint8_t buf_size,
+  VpxVideoStreamReader *reader);
 
 // Returns the pointer to memory buffer with frame data read by last call to
 // vpx_video_reader_read_frame().

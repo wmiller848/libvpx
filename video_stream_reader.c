@@ -25,7 +25,7 @@ struct VpxVideoStreamReaderStruct {
   size_t frame_size;
 };
 
-VpxVideoStreamReader *vpx_video_reader_open(const uint8_t *header) {
+VpxVideoStreamReader *vpx_video_stream_reader_open(const uint8_t *header) {
   VpxVideoStreamReader *reader = NULL;
 
   if (memcmp(kIVFSignature, header, 4) != 0)
@@ -49,15 +49,14 @@ VpxVideoStreamReader *vpx_video_reader_open(const uint8_t *header) {
 
 void vpx_video_stream_reader_close(VpxVideoStreamReader *reader) {
   if (reader) {
-    fclose(reader->file);
     free(reader->buffer);
     free(reader);
   }
 }
 
-int vpx_video_stream_reader_read_frame(const uint8_t *chunk, uint8_t chunk_size,
+int vpx_video_stream_reader_read_frame(const uint8_t *buf, uint8_t buf_size,
   VpxVideoStreamReader *reader) {
-  return !ivf_read_stream_frame(chunk, chunk_size, &reader->buffer,
+  return !ivf_read_stream_frame(buf, buf_size, &reader->buffer,
                                 &reader->frame_size, &reader->buffer_size);
 }
 

@@ -111,7 +111,7 @@ int ivf_read_frame(FILE *infile, uint8_t **buffer,
   return 1;
 }
 
-int ivf_read_stream_frame(uint8_t *in_buffer, size_t in_buffer_size, uint8_t **buffer,
+int ivf_read_stream_frame(const uint8_t *in_buffer, size_t in_buffer_size, uint8_t **buffer,
                           size_t *bytes_read, size_t *buffer_size) {
   size_t frame_size = 0;
 
