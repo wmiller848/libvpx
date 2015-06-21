@@ -15,6 +15,75 @@
 #include "vpx/vpx_integer.h"
 
 //------------------------------------------------------------------------------
+// DC 4x4
+
+// 'do_above' and 'do_left' facilitate branch removal when inlined.
+static INLINE void dc_4x4(uint8_t *dst, ptrdiff_t stride,
+                          const uint8_t *above, const uint8_t *left,
+                          int do_above, int do_left) {
+  uint16x8_t sum_top;
+  uint16x8_t sum_left;
+  uint8x8_t dc0;
+
+  if (do_above) {
+    const uint8x8_t A = vld1_u8(above);  // top row
+    const uint16x4_t p0 = vpaddl_u8(A);  // cascading summation of the top
+    const uint16x4_t p1 = vpadd_u16(p0, p0);
+    sum_top = vcombine_u16(p1, p1);
+  }
+
+  if (do_left) {
+    const uint8x8_t L = vld1_u8(left);  // left border
+    const uint16x4_t p0 = vpaddl_u8(L);  // cascading summation of the left
+    const uint16x4_t p1 = vpadd_u16(p0, p0);
+    sum_left = vcombine_u16(p1, p1);
+  }
+
+  if (do_above && do_left) {
+    const uint16x8_t sum = vaddq_u16(sum_left, sum_top);
+    dc0 = vrshrn_n_u16(sum, 3);
+  } else if (do_above) {
+    dc0 = vrshrn_n_u16(sum_top, 2);
+  } else if (do_left) {
+    dc0 = vrshrn_n_u16(sum_left, 2);
+  } else {
+    dc0 = vdup_n_u8(0x80);
+  }
+
+  {
+    const uint8x8_t dc = vdup_lane_u8(dc0, 0);
+    int i;
+    for (i = 0; i < 4; ++i) {
+      vst1_lane_u32((uint32_t*)(dst + i * stride), vreinterpret_u32_u8(dc), 0);
+    }
+  }
+}
+
+void vp9_dc_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
+                               const uint8_t *above, const uint8_t *left) {
+  dc_4x4(dst, stride, above, left, 1, 1);
+}
+
+void vp9_dc_left_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
+                                    const uint8_t *above, const uint8_t *left) {
+  (void)above;
+  dc_4x4(dst, stride, NULL, left, 0, 1);
+}
+
+void vp9_dc_top_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
+                                   const uint8_t *above, const uint8_t *left) {
+  (void)left;
+  dc_4x4(dst, stride, above, NULL, 1, 0);
+}
+
+void vp9_dc_128_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
+                                   const uint8_t *above, const uint8_t *left) {
+  (void)above;
+  (void)left;
+  dc_4x4(dst, stride, NULL, NULL, 0, 0);
+}
+
+//------------------------------------------------------------------------------
 // DC 8x8
 
 // 'do_above' and 'do_left' facilitate branch removal when inlined.
@@ -159,6 +228,144 @@ void vp9_dc_128_predictor_16x16_neon(uint8_t *dst, ptrdiff_t stride,
   (void)above;
   (void)left;
   dc_16x16(dst, stride, NULL, NULL, 0, 0);
+}
+
+//------------------------------------------------------------------------------
+// DC 32x32
+
+// 'do_above' and 'do_left' facilitate branch removal when inlined.
+static INLINE void dc_32x32(uint8_t *dst, ptrdiff_t stride,
+                            const uint8_t *above, const uint8_t *left,
+                            int do_above, int do_left) {
+  uint16x8_t sum_top;
+  uint16x8_t sum_left;
+  uint8x8_t dc0;
+
+  if (do_above) {
+    const uint8x16_t A0 = vld1q_u8(above);  // top row
+    const uint8x16_t A1 = vld1q_u8(above + 16);
+    const uint16x8_t p0 = vpaddlq_u8(A0);  // cascading summation of the top
+    const uint16x8_t p1 = vpaddlq_u8(A1);
+    const uint16x8_t p2 = vaddq_u16(p0, p1);
+    const uint16x4_t p3 = vadd_u16(vget_low_u16(p2), vget_high_u16(p2));
+    const uint16x4_t p4 = vpadd_u16(p3, p3);
+    const uint16x4_t p5 = vpadd_u16(p4, p4);
+    sum_top = vcombine_u16(p5, p5);
+  }
+
+  if (do_left) {
+    const uint8x16_t L0 = vld1q_u8(left);  // left row
+    const uint8x16_t L1 = vld1q_u8(left + 16);
+    const uint16x8_t p0 = vpaddlq_u8(L0);  // cascading summation of the left
+    const uint16x8_t p1 = vpaddlq_u8(L1);
+    const uint16x8_t p2 = vaddq_u16(p0, p1);
+    const uint16x4_t p3 = vadd_u16(vget_low_u16(p2), vget_high_u16(p2));
+    const uint16x4_t p4 = vpadd_u16(p3, p3);
+    const uint16x4_t p5 = vpadd_u16(p4, p4);
+    sum_left = vcombine_u16(p5, p5);
+  }
+
+  if (do_above && do_left) {
+    const uint16x8_t sum = vaddq_u16(sum_left, sum_top);
+    dc0 = vrshrn_n_u16(sum, 6);
+  } else if (do_above) {
+    dc0 = vrshrn_n_u16(sum_top, 5);
+  } else if (do_left) {
+    dc0 = vrshrn_n_u16(sum_left, 5);
+  } else {
+    dc0 = vdup_n_u8(0x80);
+  }
+
+  {
+    const uint8x16_t dc = vdupq_lane_u8(dc0, 0);
+    int i;
+    for (i = 0; i < 32; ++i) {
+      vst1q_u8(dst + i * stride, dc);
+      vst1q_u8(dst + i * stride + 16, dc);
+    }
+  }
+}
+
+void vp9_dc_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
+                                 const uint8_t *above, const uint8_t *left) {
+  dc_32x32(dst, stride, above, left, 1, 1);
+}
+
+void vp9_dc_left_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
+                                      const uint8_t *above,
+                                      const uint8_t *left) {
+  (void)above;
+  dc_32x32(dst, stride, NULL, left, 0, 1);
+}
+
+void vp9_dc_top_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
+                                     const uint8_t *above,
+                                     const uint8_t *left) {
+  (void)left;
+  dc_32x32(dst, stride, above, NULL, 1, 0);
+}
+
+void vp9_dc_128_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
+                                     const uint8_t *above,
+                                     const uint8_t *left) {
+  (void)above;
+  (void)left;
+  dc_32x32(dst, stride, NULL, NULL, 0, 0);
+}
+
+// -----------------------------------------------------------------------------
+
+void vp9_d45_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
+                                const uint8_t *above, const uint8_t *left) {
+  const uint64x1_t A0 = vreinterpret_u64_u8(vld1_u8(above));  // top row
+  const uint64x1_t A1 = vshr_n_u64(A0, 8);
+  const uint64x1_t A2 = vshr_n_u64(A0, 16);
+  const uint8x8_t ABCDEFGH = vreinterpret_u8_u64(A0);
+  const uint8x8_t BCDEFGH0 = vreinterpret_u8_u64(A1);
+  const uint8x8_t CDEFGH00 = vreinterpret_u8_u64(A2);
+  const uint8x8_t avg1 = vhadd_u8(ABCDEFGH, CDEFGH00);
+  const uint8x8_t avg2 = vrhadd_u8(avg1, BCDEFGH0);
+  const uint64x1_t avg2_u64 = vreinterpret_u64_u8(avg2);
+  const uint32x2_t r0 = vreinterpret_u32_u8(avg2);
+  const uint32x2_t r1 = vreinterpret_u32_u64(vshr_n_u64(avg2_u64, 8));
+  const uint32x2_t r2 = vreinterpret_u32_u64(vshr_n_u64(avg2_u64, 16));
+  const uint32x2_t r3 = vreinterpret_u32_u64(vshr_n_u64(avg2_u64, 24));
+  (void)left;
+  vst1_lane_u32((uint32_t *)(dst + 0 * stride), r0, 0);
+  vst1_lane_u32((uint32_t *)(dst + 1 * stride), r1, 0);
+  vst1_lane_u32((uint32_t *)(dst + 2 * stride), r2, 0);
+  vst1_lane_u32((uint32_t *)(dst + 3 * stride), r3, 0);
+  dst[3 * stride + 3] = above[7];
+}
+
+// -----------------------------------------------------------------------------
+
+void vp9_d135_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
+                                 const uint8_t *above, const uint8_t *left) {
+  const uint8x8_t XABCD_u8 = vld1_u8(above - 1);
+  const uint64x1_t XABCD = vreinterpret_u64_u8(XABCD_u8);
+  const uint64x1_t ____XABC = vshl_n_u64(XABCD, 32);
+  const uint32x2_t zero = vdup_n_u32(0);
+  const uint32x2_t IJKL = vld1_lane_u32((const uint32_t *)left, zero, 0);
+  const uint8x8_t IJKL_u8 = vreinterpret_u8_u32(IJKL);
+  const uint64x1_t LKJI____ = vreinterpret_u64_u8(vrev32_u8(IJKL_u8));
+  const uint64x1_t LKJIXABC = vorr_u64(LKJI____, ____XABC);
+  const uint8x8_t KJIXABC_ = vreinterpret_u8_u64(vshr_n_u64(LKJIXABC, 8));
+  const uint8x8_t JIXABC__ = vreinterpret_u8_u64(vshr_n_u64(LKJIXABC, 16));
+  const uint8_t D = vget_lane_u8(XABCD_u8, 4);
+  const uint8x8_t JIXABCD_ = vset_lane_u8(D, JIXABC__, 6);
+  const uint8x8_t LKJIXABC_u8 = vreinterpret_u8_u64(LKJIXABC);
+  const uint8x8_t avg1 = vhadd_u8(JIXABCD_, LKJIXABC_u8);
+  const uint8x8_t avg2 = vrhadd_u8(avg1, KJIXABC_);
+  const uint64x1_t avg2_u64 = vreinterpret_u64_u8(avg2);
+  const uint32x2_t r3 = vreinterpret_u32_u8(avg2);
+  const uint32x2_t r2 = vreinterpret_u32_u64(vshr_n_u64(avg2_u64, 8));
+  const uint32x2_t r1 = vreinterpret_u32_u64(vshr_n_u64(avg2_u64, 16));
+  const uint32x2_t r0 = vreinterpret_u32_u64(vshr_n_u64(avg2_u64, 24));
+  vst1_lane_u32((uint32_t *)(dst + 0 * stride), r0, 0);
+  vst1_lane_u32((uint32_t *)(dst + 1 * stride), r1, 0);
+  vst1_lane_u32((uint32_t *)(dst + 2 * stride), r2, 0);
+  vst1_lane_u32((uint32_t *)(dst + 3 * stride), r3, 0);
 }
 
 #if !HAVE_NEON_ASM

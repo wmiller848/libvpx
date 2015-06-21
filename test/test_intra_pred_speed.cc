@@ -208,9 +208,12 @@ INTRA_PRED_TEST(DSPR2, TestIntraPred4, vp9_dc_predictor_4x4_dspr2, NULL, NULL,
 #endif  // HAVE_DSPR2
 
 #if HAVE_NEON
-INTRA_PRED_TEST(NEON, TestIntraPred4, NULL, NULL, NULL, NULL,
-                vp9_v_predictor_4x4_neon, vp9_h_predictor_4x4_neon, NULL, NULL,
-                NULL, NULL, NULL, NULL, vp9_tm_predictor_4x4_neon)
+INTRA_PRED_TEST(NEON, TestIntraPred4, vp9_dc_predictor_4x4_neon,
+                vp9_dc_left_predictor_4x4_neon, vp9_dc_top_predictor_4x4_neon,
+                vp9_dc_128_predictor_4x4_neon, vp9_v_predictor_4x4_neon,
+                vp9_h_predictor_4x4_neon, vp9_d45_predictor_4x4_neon,
+                vp9_d135_predictor_4x4_neon, NULL, NULL, NULL, NULL,
+                vp9_tm_predictor_4x4_neon)
 #endif  // HAVE_NEON
 
 #if HAVE_MSA
@@ -356,14 +359,18 @@ INTRA_PRED_TEST(SSE2, TestIntraPred32, vp9_dc_predictor_32x32_sse2,
 #if HAVE_SSSE3
 INTRA_PRED_TEST(SSSE3, TestIntraPred32, NULL, NULL, NULL, NULL, NULL,
                 vp9_h_predictor_32x32_ssse3, vp9_d45_predictor_32x32_ssse3,
-                NULL, NULL, NULL, vp9_d207_predictor_32x32_ssse3,
-                vp9_d63_predictor_32x32_ssse3, NULL)
+                NULL, NULL, vp9_d153_predictor_32x32_ssse3,
+                vp9_d207_predictor_32x32_ssse3, vp9_d63_predictor_32x32_ssse3,
+                NULL)
 #endif  // HAVE_SSSE3
 
 #if HAVE_NEON
-INTRA_PRED_TEST(NEON, TestIntraPred32, NULL, NULL, NULL, NULL,
-                vp9_v_predictor_32x32_neon, vp9_h_predictor_32x32_neon, NULL,
-                NULL, NULL, NULL, NULL, NULL, vp9_tm_predictor_32x32_neon)
+INTRA_PRED_TEST(NEON, TestIntraPred32, vp9_dc_predictor_32x32_neon,
+                vp9_dc_left_predictor_32x32_neon,
+                vp9_dc_top_predictor_32x32_neon,
+                vp9_dc_128_predictor_32x32_neon, vp9_v_predictor_32x32_neon,
+                vp9_h_predictor_32x32_neon, NULL, NULL, NULL, NULL, NULL, NULL,
+                vp9_tm_predictor_32x32_neon)
 #endif  // HAVE_NEON
 
 #if HAVE_MSA

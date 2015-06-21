@@ -115,33 +115,41 @@ void vp9_hadamard_16x16_c(int16_t const *src_diff, int src_stride,
   }
 }
 
+// coeff: 16 bits, dynamic range [-32640, 32640].
+// length: value range {16, 64, 256, 1024}.
 int16_t vp9_satd_c(const int16_t *coeff, int length) {
   int i;
   int satd = 0;
   for (i = 0; i < length; ++i)
     satd += abs(coeff[i]);
 
+  // satd: 26 bits, dynamic range [-32640 * 1024, 32640 * 1024]
   return (int16_t)satd;
 }
 
 // Integer projection onto row vectors.
-void vp9_int_pro_row_c(int16_t *hbuf, uint8_t const *ref,
+// height: value range {16, 32, 64}.
+void vp9_int_pro_row_c(int16_t hbuf[16], uint8_t const *ref,
                        const int ref_stride, const int height) {
   int idx;
-  const int norm_factor = MAX(8, height >> 1);
+  const int norm_factor = height >> 1;
   for (idx = 0; idx < 16; ++idx) {
     int i;
     hbuf[idx] = 0;
+    // hbuf[idx]: 14 bit, dynamic range [0, 16320].
     for (i = 0; i < height; ++i)
       hbuf[idx] += ref[i * ref_stride];
+    // hbuf[idx]: 9 bit, dynamic range [0, 510].
     hbuf[idx] /= norm_factor;
     ++ref;
   }
 }
 
+// width: value range {16, 32, 64}.
 int16_t vp9_int_pro_col_c(uint8_t const *ref, const int width) {
   int idx;
   int16_t sum = 0;
+  // sum: 14 bit, dynamic range [0, 16320]
   for (idx = 0; idx < width; ++idx)
     sum += ref[idx];
   return sum;

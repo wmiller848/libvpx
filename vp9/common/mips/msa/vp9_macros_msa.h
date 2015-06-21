@@ -380,6 +380,17 @@
   out3 = (v8i16)__msa_ilvl_d((v2i64)out2, (v2i64)out2);  \
 }
 
+/* Description : Load 2 vectors of signed word elements with stride
+   Arguments   : Inputs  - psrc    (source pointer to load from)
+                         - stride
+                 Outputs - out0, out1
+                 Return Type - signed word
+*/
+#define LD_SW2(psrc, stride, out0, out1) {  \
+  out0 = LD_SW((psrc));                     \
+  out1 = LD_SW((psrc) + stride);            \
+}
+
 /* Description : Store vectors of 16 byte elements with stride
    Arguments   : Inputs  - in0, in1, stride
                  Outputs - pdst    (destination pointer to store to)
@@ -709,6 +720,24 @@
 }
 #define DOTP_SH4_SW(...) DOTP_SH4(v4i32, __VA_ARGS__)
 
+/* Description : Dot product of word vector elements
+   Arguments   : Inputs  - mult0, mult1
+                           cnst0, cnst1
+                 Outputs - out0, out1
+                 Return Type - signed word
+   Details     : Signed word elements from mult0 are multiplied with
+                 signed word elements from cnst0 producing a result
+                 twice the size of input i.e. signed double word.
+                 Then this multiplication results of adjacent odd-even elements
+                 are added together and stored to the out vector
+                 (2 signed double word results)
+*/
+#define DOTP_SW2(RTYPE, mult0, mult1, cnst0, cnst1, out0, out1) {  \
+  out0 = (RTYPE)__msa_dotp_s_d((v4i32)mult0, (v4i32)cnst0);        \
+  out1 = (RTYPE)__msa_dotp_s_d((v4i32)mult1, (v4i32)cnst1);        \
+}
+#define DOTP_SW2_SD(...) DOTP_SW2(v2i64, __VA_ARGS__)
+
 /* Description : Dot product & addition of byte vector elements
    Arguments   : Inputs  - mult0, mult1
                            cnst0, cnst1
@@ -777,6 +806,24 @@
   CLIP_SH2_0_255(in2, in3);                   \
 }
 
+/* Description : Addition of 4 signed word elements
+                 4 signed word elements of input vector are added together and
+                 the resulting integer sum is returned
+   Arguments   : Inputs  - in       (signed word vector)
+                 Outputs - sum_m    (i32 sum)
+                 Return Type - signed word
+*/
+#define HADD_SW_S32(in) ({                        \
+  v2i64 res0_m, res1_m;                           \
+  int32_t sum_m;                                  \
+                                                  \
+  res0_m = __msa_hadd_s_d((v4i32)in, (v4i32)in);  \
+  res1_m = __msa_splati_d(res0_m, 1);             \
+  res0_m = res0_m + res1_m;                       \
+  sum_m = __msa_copy_s_w((v4i32)res0_m, 0);       \
+  sum_m;                                          \
+})
+
 /* Description : Horizontal addition of unsigned byte vector elements
    Arguments   : Inputs  - in0, in1
                  Outputs - out0, out1
@@ -808,6 +855,15 @@
   out = (RTYPE)__msa_insert_w((v4i32)out, 1, in1);  \
 }
 #define INSERT_W2_SB(...) INSERT_W2(v16i8, __VA_ARGS__)
+
+#define INSERT_W4(RTYPE, in0, in1, in2, in3, out) {  \
+  out = (RTYPE)__msa_insert_w((v4i32)out, 0, in0);   \
+  out = (RTYPE)__msa_insert_w((v4i32)out, 1, in1);   \
+  out = (RTYPE)__msa_insert_w((v4i32)out, 2, in2);   \
+  out = (RTYPE)__msa_insert_w((v4i32)out, 3, in3);   \
+}
+#define INSERT_W4_UB(...) INSERT_W4(v16u8, __VA_ARGS__)
+#define INSERT_W4_SB(...) INSERT_W4(v16i8, __VA_ARGS__)
 
 /* Description : Insert specified double word elements from input vectors to 1
                  destination vector
@@ -854,6 +910,19 @@
 #define ILVEV_H2_UB(...) ILVEV_H2(v16u8, __VA_ARGS__)
 #define ILVEV_H2_SH(...) ILVEV_H2(v8i16, __VA_ARGS__)
 #define ILVEV_H2_SW(...) ILVEV_H2(v4i32, __VA_ARGS__)
+
+/* Description : Interleave even word elements from vectors
+   Arguments   : Inputs  - in0, in1, in2, in3
+                 Outputs - out0, out1
+                 Return Type - as per RTYPE
+   Details     : Even word elements of 'in0' and 'in1' are interleaved
+                 and written to 'out0'
+*/
+#define ILVEV_W2(RTYPE, in0, in1, in2, in3, out0, out1) {  \
+  out0 = (RTYPE)__msa_ilvev_w((v4i32)in1, (v4i32)in0);     \
+  out1 = (RTYPE)__msa_ilvev_w((v4i32)in3, (v4i32)in2);     \
+}
+#define ILVEV_W2_SB(...) ILVEV_W2(v16i8, __VA_ARGS__)
 
 /* Description : Interleave even double word elements from vectors
    Arguments   : Inputs  - in0, in1, in2, in3
@@ -1073,8 +1142,8 @@
                  Outputs - in0, in1, in2, in3 (in place)
                  Return Type - unsigned halfword
    Details     : Each unsigned halfword element from 'in0' is saturated to the
-                 value generated with (sat_val+1) bit range
-                 Results are in placed to original vectors
+                 value generated with (sat_val+1) bit range.
+                 The results are stored in place
 */
 #define SAT_UH2(RTYPE, in0, in1, sat_val) {         \
   in0 = (RTYPE)__msa_sat_u_h((v8u16)in0, sat_val);  \
@@ -1096,7 +1165,7 @@
                  Return Type - unsigned halfword
    Details     : Each unsigned halfword element from 'in0' is saturated to the
                  value generated with (sat_val+1) bit range
-                 Results are in placed to original vectors
+                 The results are stored in place
 */
 #define SAT_SH2(RTYPE, in0, in1, sat_val) {         \
   in0 = (RTYPE)__msa_sat_s_h((v8i16)in0, sat_val);  \
@@ -1216,10 +1285,10 @@
                  Outputs - in0, in1 (in-place)
                  Return Type - as per RTYPE
    Details     : Each unsigned byte element from input vector 'in0' is
-                 logically xor'ed with 128 and result is in-place stored in
+                 logically xor'ed with 128 and the result is in-place stored in
                  'in0' vector
                  Each unsigned byte element from input vector 'in1' is
-                 logically xor'ed with 128 and result is in-place stored in
+                 logically xor'ed with 128 and the result is in-place stored in
                  'in1' vector
                  Similar for other pairs
 */
@@ -1249,6 +1318,24 @@
 }
 #define XORI_B7_128_SB(...) XORI_B7_128(v16i8, __VA_ARGS__)
 
+/* Description : Average of signed halfword elements -> (a + b) / 2
+   Arguments   : Inputs  - in0, in1, in2, in3, in4, in5, in6, in7
+                 Outputs - out0, out1, out2, out3
+                 Return Type - as per RTYPE
+   Details     : Each signed halfword element from 'in0' is added to each
+                 signed halfword element of 'in1' with full precision resulting
+                 in one extra bit in the result. The result is then divided by
+                 2 and written to 'out0'
+*/
+#define AVE_SH4(RTYPE, in0, in1, in2, in3, in4, in5, in6, in7,  \
+                out0, out1, out2, out3) {                       \
+  out0 = (RTYPE)__msa_ave_s_h((v8i16)in0, (v8i16)in1);          \
+  out1 = (RTYPE)__msa_ave_s_h((v8i16)in2, (v8i16)in3);          \
+  out2 = (RTYPE)__msa_ave_s_h((v8i16)in4, (v8i16)in5);          \
+  out3 = (RTYPE)__msa_ave_s_h((v8i16)in6, (v8i16)in7);          \
+}
+#define AVE_SH4_SH(...) AVE_SH4(v8i16, __VA_ARGS__)
+
 /* Description : Addition of signed halfword elements and signed saturation
    Arguments   : Inputs  - in0, in1, in2, in3
                  Outputs - out0, out1
@@ -1271,13 +1358,28 @@
 }
 #define ADDS_SH4_SH(...) ADDS_SH4(v8i16, __VA_ARGS__)
 
+/* Description : Shift left all elements of vector (generic for all data types)
+   Arguments   : Inputs  - in0, in1, in2, in3, shift
+                 Outputs - in0, in1, in2, in3 (in place)
+                 Return Type - as per input vector RTYPE
+   Details     : Each element of vector 'in0' is left shifted by 'shift' and
+                 the result is in place written to 'in0'
+                 Similar for other pairs
+*/
+#define SLLI_4V(in0, in1, in2, in3, shift) {  \
+  in0 = in0 << shift;                         \
+  in1 = in1 << shift;                         \
+  in2 = in2 << shift;                         \
+  in3 = in3 << shift;                         \
+}
+
 /* Description : Arithmetic shift right all elements of vector
                  (generic for all data types)
    Arguments   : Inputs  - in0, in1, in2, in3, shift
                  Outputs - in0, in1, in2, in3 (in place)
                  Return Type - as per input vector RTYPE
    Details     : Each element of vector 'in0' is right shifted by 'shift' and
-                 result is in place written to 'in0'
+                 the result is in place written to 'in0'
                  Here, 'shift' is GP variable passed in
                  Similar for other pairs
 */
@@ -1287,6 +1389,27 @@
   in2 = in2 >> shift;                        \
   in3 = in3 >> shift;                        \
 }
+
+/* Description : Shift right arithmetic rounded words
+   Arguments   : Inputs  - in0, in1, shift
+                 Outputs - in place operation
+                 Return Type - as per RTYPE
+   Details     : Each element of vector 'in0' is shifted right arithmetically by
+                 the number of bits in the corresponding element in the vector
+                 'shift'. The last discarded bit is added to shifted value for
+                 rounding and the result is written in-place.
+                 'shift' is a vector.
+*/
+#define SRAR_W2(RTYPE, in0, in1, shift) {               \
+  in0 = (RTYPE)__msa_srar_w((v4i32)in0, (v4i32)shift);  \
+  in1 = (RTYPE)__msa_srar_w((v4i32)in1, (v4i32)shift);  \
+}
+
+#define SRAR_W4(RTYPE, in0, in1, in2, in3, shift) {  \
+  SRAR_W2(RTYPE, in0, in1, shift)                    \
+  SRAR_W2(RTYPE, in2, in3, shift)                    \
+}
+#define SRAR_W4_SW(...) SRAR_W4(v4i32, __VA_ARGS__)
 
 /* Description : Shift right arithmetic rounded (immediate)
    Arguments   : Inputs  - in0, in1, in2, in3, shift
@@ -1333,6 +1456,21 @@
   SRARI_W2(RTYPE, in2, in3, shift);                   \
 }
 #define SRARI_W4_SW(...) SRARI_W4(v4i32, __VA_ARGS__)
+
+/* Description : Logical shift right all elements of vector (immediate)
+   Arguments   : Inputs  - in0, in1, in2, in3, shift
+                 Outputs - out0, out1, out2, out3
+                 Return Type - as per RTYPE
+   Details     : Each element of vector 'in0' is right shifted by 'shift' and
+                 the result is written in-place. 'shift' is an immediate value.
+*/
+#define SRLI_H4(RTYPE, in0, in1, in2, in3, out0, out1, out2, out3, shift) {  \
+  out0 = (RTYPE)__msa_srli_h((v8i16)in0, shift);                             \
+  out1 = (RTYPE)__msa_srli_h((v8i16)in1, shift);                             \
+  out2 = (RTYPE)__msa_srli_h((v8i16)in2, shift);                             \
+  out3 = (RTYPE)__msa_srli_h((v8i16)in3, shift);                             \
+}
+#define SRLI_H4_SH(...) SRLI_H4(v8i16, __VA_ARGS__)
 
 /* Description : Addition of 2 pairs of vectors
    Arguments   : Inputs  - in0, in1, in2, in3
@@ -1396,6 +1534,24 @@
   ILVRL_B2_SH(zero_m, in, out0, out1);  \
 }
 
+/* Description : Sign extend halfword elements from input vector and return
+                 result in pair of vectors
+   Arguments   : Inputs  - in           (1 input halfword vector)
+                 Outputs - out0, out1   (sign extended 2 word vectors)
+                 Return Type - signed word
+   Details     : Sign bit of halfword elements from input vector 'in' is
+                 extracted and interleaved right with same vector 'in0' to
+                 generate 4 signed word elements in 'out0'
+                 Then interleaved left with same vector 'in0' to
+                 generate 4 signed word elements in 'out1'
+*/
+#define UNPCK_SH_SW(in, out0, out1) {    \
+  v8i16 tmp_m;                           \
+                                         \
+  tmp_m = __msa_clti_s_h((v8i16)in, 0);  \
+  ILVRL_H2_SW(tmp_m, in, out0, out1);    \
+}
+
 /* Description : Butterfly of 4 input vectors
    Arguments   : Inputs  - in0, in1, in2, in3
                  Outputs - out0, out1, out2, out3
@@ -1425,6 +1581,34 @@
   out5 = in2 - in5;                                                    \
   out6 = in1 - in6;                                                    \
   out7 = in0 - in7;                                                    \
+}
+
+/* Description : Butterfly of 16 input vectors
+   Arguments   : Inputs  - in0 ...  in15
+                 Outputs - out0 .. out15
+   Details     : Butterfly operation
+*/
+#define BUTTERFLY_16(in0, in1, in2, in3, in4, in5, in6, in7,                  \
+                     in8, in9,  in10, in11, in12, in13, in14, in15,           \
+                     out0, out1, out2, out3, out4, out5, out6, out7,          \
+                     out8, out9, out10, out11, out12, out13, out14, out15) {  \
+  out0 = in0 + in15;                                                          \
+  out1 = in1 + in14;                                                          \
+  out2 = in2 + in13;                                                          \
+  out3 = in3 + in12;                                                          \
+  out4 = in4 + in11;                                                          \
+  out5 = in5 + in10;                                                          \
+  out6 = in6 + in9;                                                           \
+  out7 = in7 + in8;                                                           \
+                                                                              \
+  out8 = in7 - in8;                                                           \
+  out9 = in6 - in9;                                                           \
+  out10 = in5 - in10;                                                         \
+  out11 = in4 - in11;                                                         \
+  out12 = in3 - in12;                                                         \
+  out13 = in2 - in13;                                                         \
+  out14 = in1 - in14;                                                         \
+  out15 = in0 - in15;                                                         \
 }
 
 /* Description : Transposes input 8x8 byte block
@@ -1640,7 +1824,7 @@
                  Outputs - out_m
                  Return Type - unsigned byte
    Details     : Signed byte even elements from 'in0' and 'in1' are packed
-                 together in one vector and the resulted vector is xor'ed with
+                 together in one vector and the resulting vector is xor'ed with
                  128 to shift the range from signed to unsigned byte
 */
 #define PCKEV_XORI128_UB(in0, in1) ({                    \

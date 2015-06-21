@@ -658,7 +658,8 @@ static void block_yrd(VP9_COMP *cpi, MACROBLOCK *x, int *rate, int64_t *dist,
   block = 0;
   *rate = 0;
   *dist = 0;
-  *sse = (*sse << 6) >> shift;
+  if (*sse < INT64_MAX)
+    *sse = (*sse << 6) >> shift;
   for (r = 0; r < max_blocks_high; r += block_step) {
     for (c = 0; c < num_4x4_w; c += block_step) {
       if (c < max_blocks_wide) {

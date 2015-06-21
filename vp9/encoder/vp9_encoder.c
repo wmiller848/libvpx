@@ -1596,6 +1596,9 @@ VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf,
                   sizeof(*cm->frame_contexts)));
 
   cpi->use_svc = 0;
+  cpi->resize_state = 0;
+  cpi->resize_avg_qp = 0;
+  cpi->resize_buffer_underflow = 0;
   cpi->common.buffer_pool = pool;
 
   init_config(cpi, oxcf);
@@ -3032,6 +3035,31 @@ static void set_frame_size(VP9_COMP *cpi) {
                          oxcf->scaled_frame_height);
   }
 
+  if (oxcf->pass == 0 &&
+      oxcf->rc_mode == VPX_CBR &&
+      !cpi->use_svc &&
+      oxcf->resize_mode == RESIZE_DYNAMIC) {
+      if (cpi->resize_state == 1) {
+        oxcf->scaled_frame_width =
+            (cm->width * cpi->resize_scale_num) / cpi->resize_scale_den;
+        oxcf->scaled_frame_height =
+            (cm->height * cpi->resize_scale_num) /cpi->resize_scale_den;
+      } else if (cpi->resize_state == -1) {
+        // Go back up to original size.
+        oxcf->scaled_frame_width = oxcf->width;
+        oxcf->scaled_frame_height = oxcf->height;
+      }
+      if (cpi->resize_state != 0) {
+        // There has been a change in frame size.
+        vp9_set_size_literal(cpi,
+                             oxcf->scaled_frame_width,
+                             oxcf->scaled_frame_height);
+
+        // TODO(agrange) Scale cpi->max_mv_magnitude if frame-size has changed.
+        set_mv_search_params(cpi);
+      }
+  }
+
   if ((oxcf->pass == 2) &&
       (!cpi->use_svc ||
           (is_two_pass_svc(cpi) &&
@@ -3962,7 +3990,6 @@ static void check_src_altref(VP9_COMP *cpi,
 extern double vp9_get_blockiness(const unsigned char *img1, int img1_pitch,
                                  const unsigned char *img2, int img2_pitch,
                                  int width, int height);
-#endif
 
 static void adjust_image_stat(double y, double u, double v, double all,
                               ImageStat *s) {
@@ -3972,6 +3999,7 @@ static void adjust_image_stat(double y, double u, double v, double all,
   s->stat[ALL] += all;
   s->worst = MIN(s->worst, all);
 }
+#endif  // CONFIG_INTERNAL_STATS
 
 int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, uint8_t *dest,
@@ -4165,7 +4193,7 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
           (is_two_pass_svc(cpi) &&
               cpi->svc.encode_empty_frame_state != ENCODING))) {
     vp9_rc_get_second_pass_params(cpi);
-  } else {
+  } else if (oxcf->pass == 1) {
     set_frame_size(cpi);
   }
 

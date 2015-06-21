@@ -60,7 +60,7 @@ add_proto qw/void vp9_d207_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, co
 specialize qw/vp9_d207_predictor_4x4/, "$ssse3_x86inc";
 
 add_proto qw/void vp9_d45_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_d45_predictor_4x4/, "$ssse3_x86inc";
+specialize qw/vp9_d45_predictor_4x4 neon/, "$ssse3_x86inc";
 
 add_proto qw/void vp9_d63_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
 specialize qw/vp9_d63_predictor_4x4/, "$ssse3_x86inc";
@@ -72,7 +72,7 @@ add_proto qw/void vp9_d117_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, co
 specialize qw/vp9_d117_predictor_4x4/;
 
 add_proto qw/void vp9_d135_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_d135_predictor_4x4/;
+specialize qw/vp9_d135_predictor_4x4 neon/;
 
 add_proto qw/void vp9_d153_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
 specialize qw/vp9_d153_predictor_4x4/, "$ssse3_x86inc";
@@ -84,16 +84,16 @@ add_proto qw/void vp9_tm_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, cons
 specialize qw/vp9_tm_predictor_4x4 neon dspr2 msa/, "$sse_x86inc";
 
 add_proto qw/void vp9_dc_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_dc_predictor_4x4 dspr2 msa/, "$sse_x86inc";
+specialize qw/vp9_dc_predictor_4x4 dspr2 msa neon/, "$sse_x86inc";
 
 add_proto qw/void vp9_dc_top_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_dc_top_predictor_4x4 msa/, "$sse_x86inc";
+specialize qw/vp9_dc_top_predictor_4x4 msa neon/, "$sse_x86inc";
 
 add_proto qw/void vp9_dc_left_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_dc_left_predictor_4x4 msa/, "$sse_x86inc";
+specialize qw/vp9_dc_left_predictor_4x4 msa neon/, "$sse_x86inc";
 
 add_proto qw/void vp9_dc_128_predictor_4x4/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_dc_128_predictor_4x4 msa/, "$sse_x86inc";
+specialize qw/vp9_dc_128_predictor_4x4 msa neon/, "$sse_x86inc";
 
 add_proto qw/void vp9_d207_predictor_8x8/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
 specialize qw/vp9_d207_predictor_8x8/, "$ssse3_x86inc";
@@ -192,7 +192,7 @@ add_proto qw/void vp9_d135_predictor_32x32/, "uint8_t *dst, ptrdiff_t y_stride, 
 specialize qw/vp9_d135_predictor_32x32/;
 
 add_proto qw/void vp9_d153_predictor_32x32/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_d153_predictor_32x32/;
+specialize qw/vp9_d153_predictor_32x32/, "$ssse3_x86inc";
 
 add_proto qw/void vp9_v_predictor_32x32/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
 specialize qw/vp9_v_predictor_32x32 neon msa/, "$sse2_x86inc";
@@ -201,16 +201,16 @@ add_proto qw/void vp9_tm_predictor_32x32/, "uint8_t *dst, ptrdiff_t y_stride, co
 specialize qw/vp9_tm_predictor_32x32 neon msa/, "$sse2_x86_64";
 
 add_proto qw/void vp9_dc_predictor_32x32/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_dc_predictor_32x32 msa/, "$sse2_x86inc";
+specialize qw/vp9_dc_predictor_32x32 msa neon/, "$sse2_x86inc";
 
 add_proto qw/void vp9_dc_top_predictor_32x32/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_dc_top_predictor_32x32 msa/, "$sse2_x86inc";
+specialize qw/vp9_dc_top_predictor_32x32 msa neon/, "$sse2_x86inc";
 
 add_proto qw/void vp9_dc_left_predictor_32x32/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_dc_left_predictor_32x32 msa/, "$sse2_x86inc";
+specialize qw/vp9_dc_left_predictor_32x32 msa neon/, "$sse2_x86inc";
 
 add_proto qw/void vp9_dc_128_predictor_32x32/, "uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left";
-specialize qw/vp9_dc_128_predictor_32x32 msa/, "$sse2_x86inc";
+specialize qw/vp9_dc_128_predictor_32x32 msa neon/, "$sse2_x86inc";
 
 #
 # Loopfilter
@@ -1026,10 +1026,10 @@ if (vpx_config("CONFIG_VP9_HIGHBITDEPTH") eq "yes") {
   specialize qw/vp9_fht4x4 sse2/;
 
   add_proto qw/void vp9_fht8x8/, "const int16_t *input, tran_low_t *output, int stride, int tx_type";
-  specialize qw/vp9_fht8x8 sse2/;
+  specialize qw/vp9_fht8x8 sse2 msa/;
 
   add_proto qw/void vp9_fht16x16/, "const int16_t *input, tran_low_t *output, int stride, int tx_type";
-  specialize qw/vp9_fht16x16 sse2/;
+  specialize qw/vp9_fht16x16 sse2 msa/;
 
   add_proto qw/void vp9_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";
   specialize qw/vp9_fwht4x4/, "$mmx_x86inc";
@@ -1041,25 +1041,25 @@ if (vpx_config("CONFIG_VP9_HIGHBITDEPTH") eq "yes") {
   specialize qw/vp9_fdct4x4 sse2/;
 
   add_proto qw/void vp9_fdct8x8_1/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/vp9_fdct8x8_1 sse2 neon/;
+  specialize qw/vp9_fdct8x8_1 sse2 neon msa/;
 
   add_proto qw/void vp9_fdct8x8/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/vp9_fdct8x8 sse2 neon/, "$ssse3_x86_64";
+  specialize qw/vp9_fdct8x8 sse2 neon msa/, "$ssse3_x86_64";
 
   add_proto qw/void vp9_fdct16x16_1/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/vp9_fdct16x16_1 sse2/;
+  specialize qw/vp9_fdct16x16_1 sse2 msa/;
 
   add_proto qw/void vp9_fdct16x16/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/vp9_fdct16x16 sse2/;
+  specialize qw/vp9_fdct16x16 sse2 msa/;
 
   add_proto qw/void vp9_fdct32x32_1/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/vp9_fdct32x32_1 sse2/;
+  specialize qw/vp9_fdct32x32_1 sse2 msa/;
 
   add_proto qw/void vp9_fdct32x32/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/vp9_fdct32x32 sse2 avx2/;
+  specialize qw/vp9_fdct32x32 sse2 avx2 msa/;
 
   add_proto qw/void vp9_fdct32x32_rd/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/vp9_fdct32x32_rd sse2 avx2/;
+  specialize qw/vp9_fdct32x32_rd sse2 avx2 msa/;
 }
 
 #
