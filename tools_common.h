@@ -116,6 +116,7 @@ FILE *set_binary_mode(FILE *stream);
 void die(const char *fmt, ...) VPX_NO_RETURN;
 void fatal(const char *fmt, ...) VPX_NO_RETURN;
 void warn(const char *fmt, ...);
+void info(const char *fmt, ...);
 
 void die_codec(vpx_codec_ctx_t *ctx, const char *s) VPX_NO_RETURN;
 

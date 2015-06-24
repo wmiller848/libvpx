@@ -43,6 +43,7 @@ VpxVideoStreamReader *vpx_video_stream_reader_open(const uint8_t *header) {
   reader->info.frame_height = mem_get_le16(header + 14);
   reader->info.time_base.numerator = mem_get_le32(header + 16);
   reader->info.time_base.denominator = mem_get_le32(header + 20);
+  reader->info.frame_count = mem_get_le32(header + 24);
 
   return reader;
 }
@@ -54,9 +55,9 @@ void vpx_video_stream_reader_close(VpxVideoStreamReader *reader) {
   }
 }
 
-int vpx_video_stream_reader_read_frame(const uint8_t *buf, uint8_t buf_size,
+int vpx_video_stream_reader_read_frame(const uint8_t *net_buf, const size_t net_buf_size,
   VpxVideoStreamReader *reader) {
-  return !ivf_read_stream_frame(buf, buf_size, &reader->buffer,
+  return !ivf_read_stream_frame(net_buf, net_buf_size, &reader->buffer,
                                 &reader->frame_size, &reader->buffer_size);
 }
 

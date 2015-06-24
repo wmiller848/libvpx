@@ -111,15 +111,22 @@ int ivf_read_frame(FILE *infile, uint8_t **buffer,
   return 1;
 }
 
-int ivf_read_stream_frame(const uint8_t *in_buffer, size_t in_buffer_size, uint8_t **buffer,
+int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buffer_size, uint8_t **buffer,
                           size_t *bytes_read, size_t *buffer_size) {
+  char raw_header[IVF_FRAME_HDR_SZ] = {0};
   size_t frame_size = 0;
 
-  if (in_buffer_size < IVF_FRAME_HDR_SZ) {
-    warn("Failed to read frame size\n");
+  if (in_net_buffer_size < IVF_FRAME_HDR_SZ) {
+    warn("Failed to read frame size, buffer size (%u) to small\n", (unsigned int)in_net_buffer_size);
     return 1;
   } else {
-    frame_size = mem_get_le32(in_buffer);
+    size_t i;
+    for (i = 0; i < IVF_FRAME_HDR_SZ; i++) {
+      raw_header[i] = (char)in_net_buffer[i];
+    }
+    frame_size = mem_get_le32(raw_header);
+    info("Frame Size (%u)\n", (unsigned int)frame_size);
+
     if (frame_size > 256 * 1024 * 1024) {
       warn("Read invalid frame size (%u)\n", (unsigned int)frame_size);
       frame_size = 0;
@@ -138,11 +145,14 @@ int ivf_read_stream_frame(const uint8_t *in_buffer, size_t in_buffer_size, uint8
       }
     }
 
-    size_t in_size = in_buffer_size - IVF_FRAME_HDR_SZ;
-    if (in_size >= frame_size) {
-      size_t i;
-      for (i = 0; i < frame_size; i++) {
-        *buffer[i] = in_buffer[i + IVF_FRAME_HDR_SZ];
+    // size_t in_size = in_frame_buffer_size - IVF_FRAME_HDR_SZ;
+    info("Buf Size (%u)\n", (unsigned int)in_net_buffer_size);
+    size_t hdr_size = (size_t)IVF_FRAME_HDR_SZ;
+    info("Header Size (%u)\n", (unsigned int)hdr_size);
+    if (frame_size <= in_net_buffer_size - hdr_size) {
+      for (i = 0; i < (size_t)frame_size; i++) {
+        size_t ii = i + hdr_size;
+        *buffer[i] = in_net_buffer[ii];
       }
       *bytes_read = frame_size;
       return 0;

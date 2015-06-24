@@ -21,7 +21,7 @@ int file_is_ivf(struct VpxInputContext *input);
 int ivf_read_frame(FILE *infile, uint8_t **buffer,
                    size_t *bytes_read, size_t *buffer_size);
 
-int ivf_read_stream_frame(const uint8_t *in_buffer, size_t in_buffer_size, uint8_t **buffer,
+int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buffer_size, uint8_t **buffer,
                           size_t *bytes_read, size_t *buffer_size);
 
 #ifdef __cplusplus

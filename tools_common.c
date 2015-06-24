@@ -69,6 +69,10 @@ void warn(const char *fmt, ...) {
   LOG_ERROR("Warning");
 }
 
+void info(const char *fmt, ...) {
+  LOG_ERROR("Info");
+}
+
 void die_codec(vpx_codec_ctx_t *ctx, const char *s) {
   const char *detail = vpx_codec_error_detail(ctx);
 

@@ -18,6 +18,7 @@ typedef struct {
   int frame_width;
   int frame_height;
   struct VpxRational time_base;
+  uint32_t frame_count;
 } VpxVideoInfo;
 
 #endif  // VIDEO_COMMON_H_
