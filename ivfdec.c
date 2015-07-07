@@ -120,10 +120,7 @@ int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buff
     warn("Failed to read frame size, buffer size (%u) to small\n", (unsigned int)in_net_buffer_size);
     return 1;
   } else {
-    size_t i;
-    for (i = 0; i < IVF_FRAME_HDR_SZ; i++) {
-      raw_header[i] = (char)in_net_buffer[i];
-    }
+    memcpy(raw_header, in_net_buffer, IVF_FRAME_HDR_SZ);
     frame_size = mem_get_le32(raw_header);
     info("Frame Size (%u)\n", (unsigned int)frame_size);
 
@@ -146,14 +143,11 @@ int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buff
     }
 
     // size_t in_size = in_frame_buffer_size - IVF_FRAME_HDR_SZ;
-    info("Buf Size (%u)\n", (unsigned int)in_net_buffer_size);
+    // info("Buf Size (%u)\n", (unsigned int)in_net_buffer_size);
     size_t hdr_size = (size_t)IVF_FRAME_HDR_SZ;
-    info("Header Size (%u)\n", (unsigned int)hdr_size);
+    // info("Header Size (%u)\n", (unsigned int)hdr_size);
     if (frame_size <= in_net_buffer_size - hdr_size) {
-      for (i = 0; i < (size_t)frame_size; i++) {
-        size_t ii = i + hdr_size;
-        *buffer[i] = in_net_buffer[ii];
-      }
+      memcpy(*buffer, in_net_buffer + hdr_size, frame_size);
       *bytes_read = frame_size;
       return 0;
     } else {
