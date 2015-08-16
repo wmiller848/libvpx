@@ -45,6 +45,14 @@ extern vpx_codec_iface_t  vpx_codec_vp9_cx_algo;
 extern vpx_codec_iface_t *vpx_codec_vp9_cx(void);
 /*!@} - end algorithm interface member group*/
 
+/*!\name Algorithm interface for VP10
+ *
+ * This interface provides the capability to encode raw VP9 streams.
+ * @{
+ */
+extern vpx_codec_iface_t  vpx_codec_vp10_cx_algo;
+extern vpx_codec_iface_t *vpx_codec_vp10_cx(void);
+/*!@} - end algorithm interface member group*/
 
 /*
  * Algorithm Flags
@@ -518,6 +526,22 @@ enum vp8e_enc_control_id {
    */
   VP9E_SET_TEMPORAL_LAYERING_MODE,
 
+  /*!\brief Codec control function to set minimum interval between GF/ARF frames
+   *
+   * By default the value is set as 4.
+   *
+   * Supported in codecs: VP9
+   */
+  VP9E_SET_MIN_GF_INTERVAL,
+
+  /*!\brief Codec control function to set minimum interval between GF/ARF frames
+   *
+   * By default the value is set as 16.
+   *
+   * Supported in codecs: VP9
+   */
+  VP9E_SET_MAX_GF_INTERVAL,
+
   /*!\brief Codec control function to get an Active map back from the encoder.
    *
    * Supported in codecs: VP9
@@ -715,6 +739,22 @@ VPX_CTRL_USE_TYPE(VP9E_SET_NOISE_SENSITIVITY,  unsigned int)
 VPX_CTRL_USE_TYPE(VP9E_SET_TUNE_CONTENT, int) /* vp9e_tune_content */
 
 VPX_CTRL_USE_TYPE(VP9E_SET_COLOR_SPACE, int)
+
+VPX_CTRL_USE_TYPE(VP9E_SET_MIN_GF_INTERVAL,  unsigned int)
+
+/*!\brief
+ *
+ * TODO(debargha) : add support of the control in ffmpeg
+ */
+#define VPX_CTRL_VP9E_SET_MIN_GF_INTERVAL
+
+
+VPX_CTRL_USE_TYPE(VP9E_SET_MAX_GF_INTERVAL,  unsigned int)
+/*!\brief
+ *
+ * TODO(debargha) : add support of the control in ffmpeg
+ */
+#define VPX_CTRL_VP9E_SET_MAX_GF_INTERVAL
 
 VPX_CTRL_USE_TYPE(VP9E_GET_ACTIVEMAP, vpx_active_map_t *)
 /*! @} - end defgroup vp8_encoder */

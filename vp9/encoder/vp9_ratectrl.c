@@ -17,6 +17,7 @@
 
 #include "vpx_mem/vpx_mem.h"
 #include "vpx_ports/mem.h"
+#include "vpx_ports/system_state.h"
 
 #include "vp9/common/vp9_alloccommon.h"
 #include "vp9/encoder/vp9_aq_cyclicrefresh.h"
@@ -24,7 +25,6 @@
 #include "vp9/common/vp9_entropymode.h"
 #include "vp9/common/vp9_quant_common.h"
 #include "vp9/common/vp9_seg_common.h"
-#include "vp9/common/vp9_systemdependent.h"
 
 #include "vp9/encoder/vp9_encodemv.h"
 #include "vp9/encoder/vp9_ratectrl.h"
@@ -276,6 +276,31 @@ static void update_buffer_level(VP9_COMP *cpi, int encoded_frame_size) {
   }
 }
 
+int vp9_rc_get_default_min_gf_interval(
+    int width, int height, double framerate) {
+  // Assume we do not need any constraint lower than 4K 20 fps
+  static const double factor_safe = 3840 * 2160 * 20.0;
+  const double factor = width * height * framerate;
+  const int default_interval =
+      clamp((int)(framerate * 0.125), MIN_GF_INTERVAL, MAX_GF_INTERVAL);
+
+  if (factor <= factor_safe)
+    return default_interval;
+  else
+    return MAX(default_interval,
+               (int)(MIN_GF_INTERVAL * factor / factor_safe + 0.5));
+  // Note this logic makes:
+  // 4K24: 5
+  // 4K30: 6
+  // 4K60: 12
+}
+
+int vp9_rc_get_default_max_gf_interval(double framerate, int min_gf_interval) {
+  int interval = MIN(MAX_GF_INTERVAL, (int)(framerate * 0.75));
+  interval += (interval & 0x01);  // Round to even value
+  return MAX(interval, min_gf_interval);
+}
+
 void vp9_rc_init(const VP9EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   int i;
 
@@ -284,9 +309,9 @@ void vp9_rc_init(const VP9EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
     rc->avg_frame_qindex[INTER_FRAME] = oxcf->worst_allowed_q;
   } else {
     rc->avg_frame_qindex[KEY_FRAME] = (oxcf->worst_allowed_q +
-                                           oxcf->best_allowed_q) / 2;
+                                       oxcf->best_allowed_q) / 2;
     rc->avg_frame_qindex[INTER_FRAME] = (oxcf->worst_allowed_q +
-                                           oxcf->best_allowed_q) / 2;
+                                         oxcf->best_allowed_q) / 2;
   }
 
   rc->last_q[KEY_FRAME] = oxcf->best_allowed_q;
@@ -304,7 +329,6 @@ void vp9_rc_init(const VP9EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   rc->total_target_bits = 0;
   rc->total_target_vs_actual = 0;
 
-  rc->baseline_gf_interval = DEFAULT_GF_INTERVAL;
   rc->frames_since_key = 8;  // Sensible default for first frame.
   rc->this_key_frame_forced = 0;
   rc->next_key_frame_forced = 0;
@@ -322,6 +346,16 @@ void vp9_rc_init(const VP9EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   for (i = 0; i < RATE_FACTOR_LEVELS; ++i) {
     rc->rate_correction_factors[i] = 1.0;
   }
+
+  rc->min_gf_interval = oxcf->min_gf_interval;
+  rc->max_gf_interval = oxcf->max_gf_interval;
+  if (rc->min_gf_interval == 0)
+    rc->min_gf_interval = vp9_rc_get_default_min_gf_interval(
+        oxcf->width, oxcf->height, oxcf->init_framerate);
+  if (rc->max_gf_interval == 0)
+    rc->max_gf_interval = vp9_rc_get_default_max_gf_interval(
+        oxcf->init_framerate, rc->min_gf_interval);
+  rc->baseline_gf_interval = (rc->min_gf_interval + rc->max_gf_interval) / 2;
 }
 
 int vp9_rc_drop_frame(VP9_COMP *cpi) {
@@ -421,7 +455,7 @@ void vp9_rc_update_rate_correction_factors(VP9_COMP *cpi) {
     return;
 
   // Clear down mmx registers to allow floating point in what follows
-  vp9_clear_system_state();
+  vpx_clear_system_state();
 
   // Work out how big we would have expected the frame to be at this Q given
   // the current correction factor.
@@ -601,6 +635,7 @@ static int calc_active_worst_quality_one_pass_cbr(const VP9_COMP *cpi) {
   int adjustment = 0;
   int active_worst_quality;
   int ambient_qp;
+  unsigned int num_frames_weight_key = 5 * cpi->svc.number_temporal_layers;
   if (cm->frame_type == KEY_FRAME)
     return rc->worst_quality;
   // For ambient_qp we use minimum of avg_frame_qindex[KEY_FRAME/INTER_FRAME]
@@ -608,7 +643,7 @@ static int calc_active_worst_quality_one_pass_cbr(const VP9_COMP *cpi) {
   // to worst_quality and updated with (3/4, 1/4) average in postencode_update.
   // So for first few frames following key, the qp of that key frame is weighted
   // into the active_worst_quality setting.
-  ambient_qp = (cm->current_video_frame < 5) ?
+  ambient_qp = (cm->current_video_frame < num_frames_weight_key) ?
       MIN(rc->avg_frame_qindex[INTER_FRAME], rc->avg_frame_qindex[KEY_FRAME]) :
       rc->avg_frame_qindex[INTER_FRAME];
   active_worst_quality = MIN(rc->worst_quality,
@@ -730,7 +765,7 @@ static int rc_pick_q_and_bounds_one_pass_cbr(const VP9_COMP *cpi,
       !rc->this_key_frame_forced  &&
       !(cm->current_video_frame == 0)) {
     int qdelta = 0;
-    vp9_clear_system_state();
+    vpx_clear_system_state();
     qdelta = vp9_compute_qdelta_by_rate(&cpi->rc, cm->frame_type,
                                         active_worst_quality, 2.0,
                                         cm->bit_depth);
@@ -789,7 +824,6 @@ static int rc_pick_q_and_bounds_one_pass_vbr(const VP9_COMP *cpi,
   ASSIGN_MINQ_TABLE(cm->bit_depth, inter_minq);
 
   if (frame_is_intra_only(cm)) {
-
     // Handle the special case for key frames forced when we have reached
     // the maximum key frame interval. Here force the Q to a range
     // based on the ambient Q to reduce the risk of popping.
@@ -881,7 +915,7 @@ static int rc_pick_q_and_bounds_one_pass_vbr(const VP9_COMP *cpi,
 #if LIMIT_QRANGE_FOR_ALTREF_AND_KEY
   {
     int qdelta = 0;
-    vp9_clear_system_state();
+    vpx_clear_system_state();
 
     // Limit Q range for the adaptive loop.
     if (cm->frame_type == KEY_FRAME &&
@@ -1075,7 +1109,7 @@ static int rc_pick_q_and_bounds_two_pass(const VP9_COMP *cpi,
   }
 
 #if LIMIT_QRANGE_FOR_ALTREF_AND_KEY
-  vp9_clear_system_state();
+  vpx_clear_system_state();
   // Static forced key frames Q restrictions dealt with elsewhere.
   if (!((frame_is_intra_only(cm) || vp9_is_upper_layer_key_frame(cpi))) ||
       !rc->this_key_frame_forced ||
@@ -1252,6 +1286,18 @@ void vp9_rc_postencode_update(VP9_COMP *cpi, uint64_t bytes_used) {
     rc->last_q[KEY_FRAME] = qindex;
     rc->avg_frame_qindex[KEY_FRAME] =
         ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[KEY_FRAME] + qindex, 2);
+    if (cpi->use_svc) {
+      int i = 0;
+      SVC *svc = &cpi->svc;
+      for (i = 0; i < svc->number_temporal_layers; ++i) {
+        const int layer = LAYER_IDS_TO_IDX(svc->spatial_layer_id, i,
+                                           svc->number_temporal_layers);
+        LAYER_CONTEXT *lc = &svc->layer_context[layer];
+        RATE_CONTROL *lrc = &lc->rc;
+        lrc->last_q[KEY_FRAME] = rc->last_q[KEY_FRAME];
+        lrc->avg_frame_qindex[KEY_FRAME] = rc->avg_frame_qindex[KEY_FRAME];
+      }
+    }
   } else {
     if (rc->is_src_frame_alt_ref ||
         !(cpi->refresh_golden_frame || cpi->refresh_alt_ref_frame) ||
@@ -1305,13 +1351,15 @@ void vp9_rc_postencode_update(VP9_COMP *cpi, uint64_t bytes_used) {
 
   rc->total_target_vs_actual = rc->total_actual_bits - rc->total_target_bits;
 
-  if (is_altref_enabled(cpi) && cpi->refresh_alt_ref_frame &&
-      (cm->frame_type != KEY_FRAME))
-    // Update the alternate reference frame stats as appropriate.
-    update_alt_ref_frame_stats(cpi);
-  else
-    // Update the Golden frame stats as appropriate.
-    update_golden_frame_stats(cpi);
+  if (!cpi->use_svc) {
+    if (is_altref_enabled(cpi) && cpi->refresh_alt_ref_frame &&
+        (cm->frame_type != KEY_FRAME))
+      // Update the alternate reference frame stats as appropriate.
+      update_alt_ref_frame_stats(cpi);
+    else
+      // Update the Golden frame stats as appropriate.
+      update_golden_frame_stats(cpi);
+  }
 
   if (cm->frame_type == KEY_FRAME)
     rc->frames_since_key = 0;
@@ -1321,9 +1369,11 @@ void vp9_rc_postencode_update(VP9_COMP *cpi, uint64_t bytes_used) {
   }
 
   // Trigger the resizing of the next frame if it is scaled.
-  cpi->resize_pending =
-      rc->next_frame_size_selector != rc->frame_size_selector;
-  rc->frame_size_selector = rc->next_frame_size_selector;
+  if (oxcf->pass != 0) {
+    cpi->resize_pending =
+        rc->next_frame_size_selector != rc->frame_size_selector;
+    rc->frame_size_selector = rc->next_frame_size_selector;
+  }
 }
 
 void vp9_rc_postencode_update_drop_frame(VP9_COMP *cpi) {
@@ -1382,7 +1432,7 @@ void vp9_rc_get_one_pass_vbr_params(VP9_COMP *cpi) {
     cm->frame_type = INTER_FRAME;
   }
   if (rc->frames_till_gf_update_due == 0) {
-    rc->baseline_gf_interval = DEFAULT_GF_INTERVAL;
+    rc->baseline_gf_interval = (rc->min_gf_interval + rc->max_gf_interval) / 2;
     rc->frames_till_gf_update_due = rc->baseline_gf_interval;
     // NOTE: frames_till_gf_update_due must be <= frames_to_key.
     if (rc->frames_till_gf_update_due > rc->frames_to_key) {
@@ -1576,7 +1626,8 @@ void vp9_rc_get_one_pass_cbr_params(VP9_COMP *cpi) {
     if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ)
       vp9_cyclic_refresh_set_golden_update(cpi);
     else
-      rc->baseline_gf_interval = DEFAULT_GF_INTERVAL;
+      rc->baseline_gf_interval =
+          (rc->min_gf_interval + rc->max_gf_interval) / 2;
     rc->frames_till_gf_update_due = rc->baseline_gf_interval;
     // NOTE: frames_till_gf_update_due must be <= frames_to_key.
     if (rc->frames_till_gf_update_due > rc->frames_to_key)
@@ -1596,7 +1647,10 @@ void vp9_rc_get_one_pass_cbr_params(VP9_COMP *cpi) {
     target = calc_pframe_target_size_one_pass_cbr(cpi);
 
   vp9_rc_set_frame_target(cpi, target);
-  cpi->resize_state = vp9_resize_one_pass_cbr(cpi);
+  if (cpi->oxcf.resize_mode == RESIZE_DYNAMIC)
+    cpi->resize_pending = vp9_resize_one_pass_cbr(cpi);
+  else
+    cpi->resize_pending = 0;
 }
 
 int vp9_compute_qdelta(const RATE_CONTROL *rc, double qstart, double qtarget,
@@ -1646,21 +1700,19 @@ int vp9_compute_qdelta_by_rate(const RATE_CONTROL *rc, FRAME_TYPE frame_type,
   return target_index - qindex;
 }
 
-#define MIN_GF_INTERVAL     4
-#define MAX_GF_INTERVAL     16
 void vp9_rc_set_gf_interval_range(const VP9_COMP *const cpi,
                                   RATE_CONTROL *const rc) {
   const VP9EncoderConfig *const oxcf = &cpi->oxcf;
 
-  // Set a minimum interval.
-  rc->min_gf_interval =
-    MIN(MAX_GF_INTERVAL, MAX(MIN_GF_INTERVAL, (int)(cpi->framerate * 0.125)));
-
-  // Set Maximum gf/arf interval.
-  rc->max_gf_interval =
-    MIN(MAX_GF_INTERVAL, (int)(cpi->framerate * 0.75));
-  // Round up to next even number if odd.
-  rc->max_gf_interval += (rc->max_gf_interval & 0x01);
+  // Set Maximum gf/arf interval
+  rc->max_gf_interval = oxcf->max_gf_interval;
+  rc->min_gf_interval = oxcf->min_gf_interval;
+  if (rc->min_gf_interval == 0)
+    rc->min_gf_interval = vp9_rc_get_default_min_gf_interval(
+        oxcf->width, oxcf->height, cpi->framerate);
+  if (rc->max_gf_interval == 0)
+    rc->max_gf_interval = vp9_rc_get_default_max_gf_interval(
+        cpi->framerate, rc->min_gf_interval);
 
   // Extended interval for genuinely static scenes
   rc->static_scene_max_gf_interval = MAX_LAG_BUFFERS * 2;
@@ -1772,27 +1824,29 @@ int vp9_resize_one_pass_cbr(VP9_COMP *cpi) {
     cpi->resize_count = 0;
     return 0;
   }
-  // Resize based on average QP over some window.
+  // Resize based on average buffer underflow and QP over some window.
   // Ignore samples close to key frame, since QP is usually high after key.
   if (cpi->rc.frames_since_key > 2 * cpi->framerate) {
     const int window = (int)(5 * cpi->framerate);
     cpi->resize_avg_qp += cm->base_qindex;
-    if (cpi->rc.buffer_level < 0)
+    if (cpi->rc.buffer_level < (int)(30 * rc->optimal_buffer_level / 100))
       ++cpi->resize_buffer_underflow;
     ++cpi->resize_count;
     // Check for resize action every "window" frames.
-    if (cpi->resize_count == window) {
+    if (cpi->resize_count >= window) {
       int avg_qp = cpi->resize_avg_qp / cpi->resize_count;
       // Resize down if buffer level has underflowed sufficent amount in past
       // window, and we are at original resolution.
       // Resize back up if average QP is low, and we are currently in a resized
       // down state.
       if (cpi->resize_state == 0 &&
-          cpi->resize_buffer_underflow > (cpi->resize_count >> 3)) {
+          cpi->resize_buffer_underflow > (cpi->resize_count >> 2)) {
         resize_now = 1;
+        cpi->resize_state = 1;
       } else if (cpi->resize_state == 1 &&
                  avg_qp < 40 * cpi->rc.worst_quality / 100) {
         resize_now = -1;
+        cpi->resize_state = 0;
       }
       // Reset for next window measurement.
       cpi->resize_avg_qp = 0;

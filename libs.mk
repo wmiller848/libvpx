@@ -50,6 +50,9 @@ CODEC_SRCS-yes += $(addprefix vpx_ports/,$(call enabled,PORTS_SRCS))
 include $(SRC_PATH_BARE)/vpx_dsp/vpx_dsp.mk
 CODEC_SRCS-yes += $(addprefix vpx_dsp/,$(call enabled,DSP_SRCS))
 
+include $(SRC_PATH_BARE)/vpx_util/vpx_util.mk
+CODEC_SRCS-yes += $(addprefix vpx_util/,$(call enabled,UTIL_SRCS))
+
 ifneq ($(CONFIG_VP8_ENCODER)$(CONFIG_VP8_DECODER),)
   VP8_PREFIX=vp8/
   include $(SRC_PATH_BARE)/$(VP8_PREFIX)vp8_common.mk
@@ -105,6 +108,40 @@ endif
 
 VP9_PREFIX=vp9/
 $(BUILD_PFX)$(VP9_PREFIX)%.c.o: CFLAGS += -Wextra
+
+#  VP10 make file
+ifneq ($(CONFIG_VP10_ENCODER)$(CONFIG_VP10_DECODER),)
+  VP10_PREFIX=vp10/
+  include $(SRC_PATH_BARE)/$(VP10_PREFIX)vp10_common.mk
+endif
+
+ifeq ($(CONFIG_VP10_ENCODER),yes)
+  VP10_PREFIX=vp10/
+  include $(SRC_PATH_BARE)/$(VP10_PREFIX)vp10cx.mk
+  CODEC_SRCS-yes += $(addprefix $(VP10_PREFIX),$(call enabled,VP10_CX_SRCS))
+  CODEC_EXPORTS-yes += $(addprefix $(VP10_PREFIX),$(VP10_CX_EXPORTS))
+  CODEC_SRCS-yes += $(VP10_PREFIX)vp10cx.mk vpx/vp8.h vpx/vp8cx.h
+  INSTALL-LIBS-yes += include/vpx/vp8.h include/vpx/vp8cx.h
+  INSTALL-LIBS-$(CONFIG_SPATIAL_SVC) += include/vpx/svc_context.h
+  INSTALL_MAPS += include/vpx/% $(SRC_PATH_BARE)/$(VP10_PREFIX)/%
+  CODEC_DOC_SRCS += vpx/vp8.h vpx/vp8cx.h
+  CODEC_DOC_SECTIONS += vp9 vp9_encoder
+endif
+
+ifeq ($(CONFIG_VP10_DECODER),yes)
+  VP10_PREFIX=vp10/
+  include $(SRC_PATH_BARE)/$(VP10_PREFIX)vp10dx.mk
+  CODEC_SRCS-yes += $(addprefix $(VP10_PREFIX),$(call enabled,VP10_DX_SRCS))
+  CODEC_EXPORTS-yes += $(addprefix $(VP10_PREFIX),$(VP10_DX_EXPORTS))
+  CODEC_SRCS-yes += $(VP10_PREFIX)vp10dx.mk vpx/vp8.h vpx/vp8dx.h
+  INSTALL-LIBS-yes += include/vpx/vp8.h include/vpx/vp8dx.h
+  INSTALL_MAPS += include/vpx/% $(SRC_PATH_BARE)/$(VP10_PREFIX)/%
+  CODEC_DOC_SRCS += vpx/vp8.h vpx/vp8dx.h
+  CODEC_DOC_SECTIONS += vp9 vp9_decoder
+endif
+
+VP10_PREFIX=vp10/
+$(BUILD_PFX)$(VP10_PREFIX)%.c.o: CFLAGS += -Wextra
 
 ifeq ($(CONFIG_ENCODERS),yes)
   CODEC_DOC_SECTIONS += encoder
@@ -508,11 +545,13 @@ INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(TEST_INTRA_PRED_SPEED_SRCS)
 
 define test_shard_template
 test:: test_shard.$(1)
-test_shard.$(1): $(LIBVPX_TEST_BIN) testdata
+test-no-data-check:: test_shard_ndc.$(1)
+test_shard.$(1) test_shard_ndc.$(1): $(LIBVPX_TEST_BIN)
 	@set -e; \
 	 export GTEST_SHARD_INDEX=$(1); \
 	 export GTEST_TOTAL_SHARDS=$(2); \
 	 $(LIBVPX_TEST_BIN)
+test_shard.$(1): testdata
 .PHONY: test_shard.$(1)
 endef
 
@@ -557,15 +596,16 @@ ifeq ($(CONFIG_MSVS),yes)
 # TODO(tomfinegan): Support running the debug versions of tools?
 TEST_BIN_PATH := $(addsuffix /$(TGT_OS:win64=x64)/Release, $(TEST_BIN_PATH))
 endif
-utiltest: testdata
+utiltest utiltest-no-data-check:
 	$(qexec)$(SRC_PATH_BARE)/test/vpxdec.sh \
 		--test-data-path $(LIBVPX_TEST_DATA_PATH) \
 		--bin-path $(TEST_BIN_PATH)
 	$(qexec)$(SRC_PATH_BARE)/test/vpxenc.sh \
 		--test-data-path $(LIBVPX_TEST_DATA_PATH) \
 		--bin-path $(TEST_BIN_PATH)
+utiltest: testdata
 else
-utiltest:
+utiltest utiltest-no-data-check:
 	@echo Unit tests must be enabled to make the utiltest target.
 endif
 
@@ -583,11 +623,12 @@ ifeq ($(CONFIG_MSVS),yes)
 # TODO(tomfinegan): Support running the debug versions of tools?
 EXAMPLES_BIN_PATH := $(TGT_OS:win64=x64)/Release
 endif
-exampletest: examples testdata
+exampletest exampletest-no-data-check: examples
 	$(qexec)$(SRC_PATH_BARE)/test/examples.sh \
 		--test-data-path $(LIBVPX_TEST_DATA_PATH) \
 		--bin-path $(EXAMPLES_BIN_PATH)
+exampletest: testdata
 else
-exampletest:
+exampletest exampletest-no-data-check:
 	@echo Unit tests must be enabled to make the exampletest target.
 endif

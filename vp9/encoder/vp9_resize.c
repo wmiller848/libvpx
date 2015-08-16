@@ -15,6 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if CONFIG_VP9_HIGHBITDEPTH
+#include "vpx_dsp/vpx_dsp_common.h"
+#endif  // CONFIG_VP9_HIGHBITDEPTH
 #include "vpx_ports/mem.h"
 #include "vp9/common/vp9_common.h"
 #include "vp9/encoder/vp9_resize.h"
@@ -445,7 +448,7 @@ static void resize_multistep(const uint8_t *const input,
                              uint8_t *buf) {
   int steps;
   if (length == olength) {
-    memcpy(output, input, sizeof(uint8_t) * length);
+    memcpy(output, input, sizeof(output[0]) * length);
     return;
   }
   steps = get_down2_steps(length, olength);
@@ -738,7 +741,7 @@ static void highbd_resize_multistep(const uint16_t *const input,
                                     int bd) {
   int steps;
   if (length == olength) {
-    memcpy(output, input, sizeof(uint16_t) * length);
+    memcpy(output, input, sizeof(output[0]) * length);
     return;
   }
   steps = get_down2_steps(length, olength);

@@ -17,20 +17,20 @@
 #include "./vp9_rtcd.h"
 
 #include "vpx_ports/mem.h"
+#include "vpx_ports/system_state.h"
 #include "vpx_scale/vpx_scale.h"
 #include "vpx_scale/yv12config.h"
 
 #include "vp9/common/vp9_onyxc_int.h"
 #include "vp9/common/vp9_postproc.h"
-#include "vp9/common/vp9_systemdependent.h"
 #include "vp9/common/vp9_textblit.h"
 
 #if CONFIG_VP9_POSTPROC
-static const short kernel5[] = {
+static const int16_t kernel5[] = {
   1, 1, 4, 1, 1
 };
 
-const short vp9_rv[] = {
+const int16_t vp9_rv[] = {
   8, 5, 2, 2, 8, 12, 4, 9, 8, 3,
   0, 3, 9, 0, 0, 0, 8, 3, 14, 4,
   10, 1, 11, 14, 1, 14, 9, 6, 12, 11,
@@ -320,7 +320,7 @@ void vp9_mbpost_proc_down_c(uint8_t *dst, int pitch,
     int sumsq = 0;
     int sum   = 0;
     uint8_t d[16];
-    const short *rv2 = rv3 + ((c * 17) & 127);
+    const int16_t *rv2 = rv3 + ((c * 17) & 127);
 
     for (i = -8; i <= 6; i++) {
       sumsq += s[i * pitch] * s[i * pitch];
@@ -544,7 +544,7 @@ static void fillrd(struct postproc_state *state, int q, int a) {
   double sigma;
   int ai = a, qi = q, i;
 
-  vp9_clear_system_state();
+  vpx_clear_system_state();
 
   sigma = ai + .5 + .6 * (63 - qi) / 63.0;
 
@@ -638,7 +638,7 @@ int vp9_post_proc_frame(struct VP9Common *cm,
     return 0;
   }
 
-  vp9_clear_system_state();
+  vpx_clear_system_state();
 
   // Alloc memory for prev_mip in the first frame.
   if (cm->current_video_frame == 1) {
@@ -659,7 +659,7 @@ int vp9_post_proc_frame(struct VP9Common *cm,
       const int width = ALIGN_POWER_OF_TWO(cm->width, 4);
       const int height = ALIGN_POWER_OF_TWO(cm->height, 4);
 
-      if (vp9_alloc_frame_buffer(&cm->post_proc_buffer_int, width, height,
+      if (vpx_alloc_frame_buffer(&cm->post_proc_buffer_int, width, height,
                                  cm->subsampling_x, cm->subsampling_y,
 #if CONFIG_VP9_HIGHBITDEPTH
                                  cm->use_highbitdepth,
@@ -677,7 +677,7 @@ int vp9_post_proc_frame(struct VP9Common *cm,
     }
   }
 
-  if (vp9_realloc_frame_buffer(&cm->post_proc_buffer, cm->width, cm->height,
+  if (vpx_realloc_frame_buffer(&cm->post_proc_buffer, cm->width, cm->height,
                                cm->subsampling_x, cm->subsampling_y,
 #if CONFIG_VP9_HIGHBITDEPTH
                                cm->use_highbitdepth,

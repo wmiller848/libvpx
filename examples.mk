@@ -22,17 +22,18 @@ LIBYUV_SRCS +=  third_party/libyuv/include/libyuv/basic_types.h  \
                 third_party/libyuv/source/planar_functions.cc \
                 third_party/libyuv/source/row_any.cc \
                 third_party/libyuv/source/row_common.cc \
+                third_party/libyuv/source/row_gcc.cc \
                 third_party/libyuv/source/row_mips.cc \
                 third_party/libyuv/source/row_neon.cc \
                 third_party/libyuv/source/row_neon64.cc \
-                third_party/libyuv/source/row_posix.cc \
                 third_party/libyuv/source/row_win.cc \
                 third_party/libyuv/source/scale.cc \
+                third_party/libyuv/source/scale_any.cc \
                 third_party/libyuv/source/scale_common.cc \
+                third_party/libyuv/source/scale_gcc.cc \
                 third_party/libyuv/source/scale_mips.cc \
                 third_party/libyuv/source/scale_neon.cc \
                 third_party/libyuv/source/scale_neon64.cc \
-                third_party/libyuv/source/scale_posix.cc \
                 third_party/libyuv/source/scale_win.cc \
 
 LIBWEBM_MUXER_SRCS += third_party/libwebm/mkvmuxer.cpp \
@@ -324,8 +325,8 @@ endif
 # the makefiles). We may want to revisit this.
 define vcproj_template
 $(1): $($(1:.$(VCPROJ_SFX)=).SRCS) vpx.$(VCPROJ_SFX)
-	@echo "    [vcproj] $$@"
-	$$(GEN_VCPROJ)\
+	$(if $(quiet),@echo "    [vcproj] $$@")
+	$(qexec)$$(GEN_VCPROJ)\
             --exe\
             --target=$$(TOOLCHAIN)\
             --name=$$(@:.$(VCPROJ_SFX)=)\

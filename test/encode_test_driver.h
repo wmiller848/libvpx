@@ -13,12 +13,13 @@
 #include <string>
 #include <vector>
 
-#include "./vpx_config.h"
 #include "third_party/googletest/src/include/gtest/gtest.h"
-#include "vpx/vpx_encoder.h"
-#if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER
+
+#include "./vpx_config.h"
+#if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER || CONFIG_VP10_ENCODER
 #include "vpx/vp8cx.h"
 #endif
+#include "vpx/vpx_encoder.h"
 
 namespace libvpx_test {
 
@@ -137,7 +138,7 @@ class Encoder {
     const vpx_codec_err_t res = vpx_codec_control_(&encoder_, ctrl_id, arg);
     ASSERT_EQ(VPX_CODEC_OK, res) << EncoderError();
   }
-#if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER
+#if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER || CONFIG_VP10_ENCODER
   void Control(int ctrl_id, vpx_active_map_t *arg) {
     const vpx_codec_err_t res = vpx_codec_control_(&encoder_, ctrl_id, arg);
     ASSERT_EQ(VPX_CODEC_OK, res) << EncoderError();

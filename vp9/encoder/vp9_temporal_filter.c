@@ -15,7 +15,6 @@
 #include "vp9/common/vp9_onyxc_int.h"
 #include "vp9/common/vp9_quant_common.h"
 #include "vp9/common/vp9_reconinter.h"
-#include "vp9/common/vp9_systemdependent.h"
 #include "vp9/encoder/vp9_extend.h"
 #include "vp9/encoder/vp9_firstpass.h"
 #include "vp9/encoder/vp9_mcomp.h"
@@ -46,7 +45,7 @@ static void temporal_filter_predictors_mb_c(MACROBLOCKD *xd,
   const int which_mv = 0;
   const MV mv = { mv_row, mv_col };
   const InterpKernel *const kernel =
-    vp9_get_interp_kernel(xd->mi[0]->mbmi.interp_filter);
+    vp9_filter_kernels[xd->mi[0]->mbmi.interp_filter];
 
   enum mv_precision mv_precision_uv;
   int uv_stride;
@@ -706,7 +705,7 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
       for (frame = 0; frame < frames_to_blur; ++frame) {
         if (cm->mi_cols * MI_SIZE != frames[frame]->y_width ||
             cm->mi_rows * MI_SIZE != frames[frame]->y_height) {
-          if (vp9_realloc_frame_buffer(&cpi->svc.scaled_frames[frame_used],
+          if (vpx_realloc_frame_buffer(&cpi->svc.scaled_frames[frame_used],
                                        cm->width, cm->height,
                                        cm->subsampling_x, cm->subsampling_y,
 #if CONFIG_VP9_HIGHBITDEPTH
