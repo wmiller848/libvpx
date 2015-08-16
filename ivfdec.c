@@ -130,6 +130,7 @@ int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buff
       return 1;
     }
 
+    size_t hdr_size = (size_t)IVF_FRAME_HDR_SZ;
     if (frame_size > *buffer_size) {
       uint8_t *new_buffer = realloc(*buffer, 2 * frame_size);
       if (new_buffer) {
@@ -144,9 +145,9 @@ int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buff
 
     // size_t in_size = in_frame_buffer_size - IVF_FRAME_HDR_SZ;
     // info("Buf Size (%u)\n", (unsigned int)in_net_buffer_size);
-    size_t hdr_size = (size_t)IVF_FRAME_HDR_SZ;
+
     // info("Header Size (%u)\n", (unsigned int)hdr_size);
-    if (frame_size <= in_net_buffer_size - hdr_size) {
+    if (frame_size <= in_net_buffer_size) {
       memcpy(*buffer, in_net_buffer + hdr_size, frame_size);
       *bytes_read = frame_size;
       return 0;
