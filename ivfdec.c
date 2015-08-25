@@ -122,7 +122,7 @@ int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buff
   } else {
     memcpy(raw_header, in_net_buffer, IVF_FRAME_HDR_SZ);
     frame_size = mem_get_le32(raw_header);
-    info("Frame Size (%u)\n", (unsigned int)frame_size);
+    // info("Frame Size (%u)\n", (unsigned int)frame_size);
 
     if (frame_size > 256 * 1024 * 1024) {
       warn("Read invalid frame size (%u)\n", (unsigned int)frame_size);
@@ -132,7 +132,7 @@ int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buff
 
     size_t hdr_size = (size_t)IVF_FRAME_HDR_SZ;
     if (frame_size > *buffer_size) {
-      info("Expanding Buffer size");
+      // info("Expanding Buffer size");
       uint8_t *new_buffer = realloc(*buffer, 2 * frame_size);
       if (new_buffer) {
         *buffer = new_buffer;
