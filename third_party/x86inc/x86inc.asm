@@ -762,7 +762,14 @@ BRANCH_INSTR jz, je, jnz, jne, jl, jle, jnl, jnle, jg, jge, jng, jnge, ja, jae, 
 %macro cglobal_internal 2-3+
     %if %1
         %xdefine %%FUNCTION_PREFIX private_prefix
-        %xdefine %%VISIBILITY hidden
+        ; libvpx explicitly sets visibility in shared object builds. Avoid
+        ; setting visibility to hidden as it may break builds that split
+        ; sources on e.g., directory boundaries.
+        %ifdef CHROMIUM
+            %xdefine %%VISIBILITY hidden
+        %else
+            %xdefine %%VISIBILITY
+        %endif
     %else
         %xdefine %%FUNCTION_PREFIX public_prefix
         %xdefine %%VISIBILITY
@@ -869,6 +876,10 @@ SECTION .note.GNU-stack noalloc noexec nowrite progbits
 %define    cpuflag(x) ((cpuflags & (cpuflags_ %+ x)) == (cpuflags_ %+ x))
 %define notcpuflag(x) ((cpuflags & (cpuflags_ %+ x)) != (cpuflags_ %+ x))
 
+%ifdef __NASM_VER__
+    %use smartalign
+%endif
+
 ; Takes an arbitrary number of cpuflags from the above list.
 ; All subsequent functions (up to the next INIT_CPUFLAGS) is built for the specified cpu.
 ; You shouldn't need to invoke this macro directly, it's a subroutine for INIT_MMX &co.
@@ -905,7 +916,6 @@ SECTION .note.GNU-stack noalloc noexec nowrite progbits
     %endif
 
     %ifdef __NASM_VER__
-        %use smartalign
         ALIGNMODE k7
     %elif ARCH_X86_64 || cpuflag(sse2)
         CPU amdnop

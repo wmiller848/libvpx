@@ -45,6 +45,7 @@ struct vp9_extracfg {
   vpx_bit_depth_t             bit_depth;
   vp9e_tune_content           content;
   vpx_color_space_t           color_space;
+  int                         color_range;
 };
 
 static struct vp9_extracfg default_extra_cfg = {
@@ -71,6 +72,7 @@ static struct vp9_extracfg default_extra_cfg = {
   VPX_BITS_8,                 // Bit depth
   VP9E_CONTENT_DEFAULT,       // content
   VPX_CS_UNKNOWN,             // color space
+  0,                          // color range
 };
 
 struct vpx_codec_alg_priv {
@@ -321,6 +323,7 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t *ctx,
     ERROR("Codec bit-depth 8 not supported in profile > 1");
   }
   RANGE_CHECK(extra_cfg, color_space, VPX_CS_UNKNOWN, VPX_CS_SRGB);
+  RANGE_CHECK(extra_cfg, color_range, 0, 2);
   return VPX_CODEC_OK;
 }
 
@@ -465,6 +468,7 @@ static vpx_codec_err_t set_encoder_config(
 #endif
 
   oxcf->color_space = extra_cfg->color_space;
+  oxcf->color_range = extra_cfg->color_range;
   oxcf->arnr_max_frames = extra_cfg->arnr_max_frames;
   oxcf->arnr_strength   = extra_cfg->arnr_strength;
   oxcf->min_gf_interval = extra_cfg->min_gf_interval;
@@ -1412,6 +1416,20 @@ static vpx_codec_err_t ctrl_set_svc_parameters(vpx_codec_alg_priv_t *ctx,
   return VPX_CODEC_OK;
 }
 
+static vpx_codec_err_t ctrl_set_svc_ref_frame_config(vpx_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  VP9_COMP *const cpi = ctx->cpi;
+  vpx_svc_ref_frame_config_t *data = va_arg(args, vpx_svc_ref_frame_config_t *);
+  int sl;
+  for (sl = 0; sl < cpi->svc.number_spatial_layers; ++sl) {
+    cpi->svc.ext_frame_flags[sl] = data->frame_flags[sl];
+    cpi->svc.ext_lst_fb_idx[sl] = data->lst_fb_idx[sl];
+    cpi->svc.ext_gld_fb_idx[sl] = data->gld_fb_idx[sl];
+    cpi->svc.ext_alt_fb_idx[sl] = data->alt_fb_idx[sl];
+  }
+  return VPX_CODEC_OK;
+}
+
 static vpx_codec_err_t ctrl_register_cx_callback(vpx_codec_alg_priv_t *ctx,
                                                  va_list args) {
   vpx_codec_priv_output_cx_pkt_cb_pair_t *cbp =
@@ -1433,6 +1451,13 @@ static vpx_codec_err_t ctrl_set_color_space(vpx_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct vp9_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.color_space = CAST(VP9E_SET_COLOR_SPACE, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static vpx_codec_err_t ctrl_set_color_range(vpx_codec_alg_priv_t *ctx,
+                                            va_list args) {
+  struct vp9_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.color_range = CAST(VP9E_SET_COLOR_RANGE, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -1472,9 +1497,11 @@ static vpx_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   {VP9E_SET_SVC_LAYER_ID,             ctrl_set_svc_layer_id},
   {VP9E_SET_TUNE_CONTENT,             ctrl_set_tune_content},
   {VP9E_SET_COLOR_SPACE,              ctrl_set_color_space},
+  {VP9E_SET_COLOR_RANGE,              ctrl_set_color_range},
   {VP9E_SET_NOISE_SENSITIVITY,        ctrl_set_noise_sensitivity},
   {VP9E_SET_MIN_GF_INTERVAL,          ctrl_set_min_gf_interval},
   {VP9E_SET_MAX_GF_INTERVAL,          ctrl_set_max_gf_interval},
+  {VP9E_SET_SVC_REF_FRAME_CONFIG,     ctrl_set_svc_ref_frame_config},
 
   // Getters
   {VP8E_GET_LAST_QUANTIZER,           ctrl_get_quantizer},

@@ -53,7 +53,7 @@ VP8_COMMON_SRCS-yes += common/swapyv12buffer.h
 VP8_COMMON_SRCS-yes += common/systemdependent.h
 VP8_COMMON_SRCS-yes += common/threading.h
 VP8_COMMON_SRCS-yes += common/treecoder.h
-VP8_COMMON_SRCS-yes += common/loopfilter.c
+VP8_COMMON_SRCS-yes += common/vp8_loopfilter.c
 VP8_COMMON_SRCS-yes += common/loopfilter_filters.c
 VP8_COMMON_SRCS-yes += common/mbpitch.c
 VP8_COMMON_SRCS-yes += common/modecont.c
@@ -108,7 +108,7 @@ endif
 # common (c)
 VP8_COMMON_SRCS-$(HAVE_DSPR2)  += common/mips/dspr2/idctllm_dspr2.c
 VP8_COMMON_SRCS-$(HAVE_DSPR2)  += common/mips/dspr2/filter_dspr2.c
-VP8_COMMON_SRCS-$(HAVE_DSPR2)  += common/mips/dspr2/loopfilter_filters_dspr2.c
+VP8_COMMON_SRCS-$(HAVE_DSPR2)  += common/mips/dspr2/vp8_loopfilter_filters_dspr2.c
 VP8_COMMON_SRCS-$(HAVE_DSPR2)  += common/mips/dspr2/reconinter_dspr2.c
 VP8_COMMON_SRCS-$(HAVE_DSPR2)  += common/mips/dspr2/idct_blk_dspr2.c
 VP8_COMMON_SRCS-$(HAVE_DSPR2)  += common/mips/dspr2/dequantize_dspr2.c
@@ -161,7 +161,7 @@ VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/idct_blk_neon.c
 VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/idct_dequant_0_2x_neon.c
 VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/idct_dequant_full_2x_neon.c
 VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/iwalsh_neon.c
-VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/loopfilter_neon.c
+VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/vp8_loopfilter_neon.c
 VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/loopfiltersimplehorizontaledge_neon.c
 VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/loopfiltersimpleverticaledge_neon.c
 VP8_COMMON_SRCS-$(HAVE_NEON)  += common/arm/neon/mbloopfilter_neon.c

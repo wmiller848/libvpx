@@ -194,6 +194,9 @@ fi
 [ -d "${source_path}/vp9" ] || disable_feature vp9
 [ -d "${source_path}/vp10" ] || disable_feature vp10
 
+# disable vp10 codec by default
+disable_feature vp10
+
 # install everything except the sources, by default. sources will have
 # to be enabled when doing dist builds, since that's no longer a common
 # case.
@@ -261,6 +264,7 @@ EXPERIMENT_LIST="
     spatial_svc
     fp_mb_stats
     emulate_hardware
+    misc_fixes
 "
 CONFIG_LIST="
     dependency_tracking
@@ -713,6 +717,16 @@ EOF
     esac
     # libwebm needs to be linked with C++ standard library
     enabled webm_io && LD=${CXX}
+
+    # append any user defined extra cflags
+    if [ -n "${extra_cflags}" ] ; then
+        check_add_cflags ${extra_cflags} || \
+        die "Requested extra CFLAGS '${extra_cflags}' not supported by compiler"
+    fi
+    if [ -n "${extra_cxxflags}" ]; then
+        check_add_cxxflags ${extra_cxxflags} || \
+        die "Requested extra CXXFLAGS '${extra_cxxflags}' not supported by compiler"
+    fi
 }
 
 

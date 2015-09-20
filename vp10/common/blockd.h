@@ -14,6 +14,7 @@
 
 #include "./vpx_config.h"
 
+#include "vpx_dsp/vpx_dsp_common.h"
 #include "vpx_ports/mem.h"
 #include "vpx_scale/yv12config.h"
 
@@ -69,6 +70,9 @@ typedef struct {
   PREDICTION_MODE mode;
   TX_SIZE tx_size;
   int8_t skip;
+#if CONFIG_MISC_FIXES
+  int8_t has_no_coeffs;
+#endif
   int8_t segment_id;
   int8_t seg_id_predicted;  // valid only when temporal_update is enabled
 
@@ -175,7 +179,6 @@ typedef struct macroblockd {
   int mb_to_bottom_edge;
 
   FRAME_CONTEXT *fc;
-  int frame_parallel_decoding_mode;
 
   /* pointers to reference frames */
   RefBuffer *block_refs[2];
@@ -218,24 +221,16 @@ static const TX_TYPE intra_mode_to_tx_type_lookup[INTRA_MODES] = {
   ADST_ADST,  // TM
 };
 
-static INLINE TX_TYPE get_tx_type(PLANE_TYPE plane_type,
-                                  const MACROBLOCKD *xd) {
-  const MB_MODE_INFO *const mbmi = &xd->mi[0]->mbmi;
-
-  if (plane_type != PLANE_TYPE_Y || xd->lossless || is_inter_block(mbmi))
-    return DCT_DCT;
-
-  return intra_mode_to_tx_type_lookup[mbmi->mode];
-}
-
-static INLINE TX_TYPE get_tx_type_4x4(PLANE_TYPE plane_type,
-                                      const MACROBLOCKD *xd, int ib) {
+static INLINE TX_TYPE get_tx_type(PLANE_TYPE plane_type, const MACROBLOCKD *xd,
+                                  int block_idx) {
   const MODE_INFO *const mi = xd->mi[0];
+  const MB_MODE_INFO *const mbmi = &mi->mbmi;
 
-  if (plane_type != PLANE_TYPE_Y || xd->lossless || is_inter_block(&mi->mbmi))
+  if (plane_type != PLANE_TYPE_Y || xd->lossless || is_inter_block(mbmi) ||
+      mbmi->tx_size >= TX_32X32)
     return DCT_DCT;
 
-  return intra_mode_to_tx_type_lookup[get_y_mode(mi, ib)];
+  return intra_mode_to_tx_type_lookup[get_y_mode(mi, block_idx)];
 }
 
 void vp10_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y);
@@ -246,7 +241,7 @@ static INLINE TX_SIZE get_uv_tx_size_impl(TX_SIZE y_tx_size, BLOCK_SIZE bsize,
     return TX_4X4;
   } else {
     const BLOCK_SIZE plane_bsize = ss_size_lookup[bsize][xss][yss];
-    return MIN(y_tx_size, max_txsize_lookup[plane_bsize]);
+    return VPXMIN(y_tx_size, max_txsize_lookup[plane_bsize]);
   }
 }
 
