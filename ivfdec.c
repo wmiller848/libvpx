@@ -117,7 +117,7 @@ int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buff
   size_t frame_size = 0;
 
   if (in_net_buffer_size < IVF_FRAME_HDR_SZ) {
-    warn("Failed to read frame size, buffer size (%u) to small\n", (unsigned int)in_net_buffer_size);
+    // warn("Failed to read frame size, buffer size (%u) to small\n", (unsigned int)in_net_buffer_size);
     return 1;
   } else {
     memcpy(raw_header, in_net_buffer, IVF_FRAME_HDR_SZ);
@@ -153,7 +153,7 @@ int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buff
       *bytes_read = frame_size;
       return 0;
     } else {
-      warn("Failed to read full frame\n");
+      // warn("Failed to read full frame\n");
       return 1;
     }
   }
