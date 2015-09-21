@@ -433,7 +433,7 @@ NM=${NM}
 
 CFLAGS  = ${CFLAGS}
 CXXFLAGS  = ${CXXFLAGS}
-ARFLAGS = -crs\$(if \$(quiet),,v)
+ARFLAGS = -rus\$(if \$(quiet),c,v)
 LDFLAGS = ${LDFLAGS}
 ASFLAGS = ${ASFLAGS}
 extralibs = ${extralibs}
@@ -1045,7 +1045,7 @@ EOF
             check_add_ldflags -mfp64
             ;;
           i6400)
-            check_add_cflags -mips64r6 -mabi=64 -funroll-loops -msched-weight 
+            check_add_cflags -mips64r6 -mabi=64 -funroll-loops -msched-weight
             check_add_cflags  -mload-store-pairs -mhard-float -mfp64
             check_add_asflags -mips64r6 -mabi=64 -mhard-float -mfp64
             check_add_ldflags -mips64r6 -mabi=64 -mfp64
