@@ -110,3 +110,51 @@ int ivf_read_frame(FILE *infile, uint8_t **buffer,
 
   return 1;
 }
+
+int ivf_read_stream_frame(const uint8_t *in_net_buffer, const size_t in_net_buffer_size, uint8_t **buffer,
+                          size_t *bytes_read, size_t *buffer_size) {
+  char raw_header[IVF_FRAME_HDR_SZ] = {0};
+  size_t frame_size = 0;
+
+  if (in_net_buffer_size < IVF_FRAME_HDR_SZ) {
+    // warn("Failed to read frame size, buffer size (%u) to small\n", (unsigned int)in_net_buffer_size);
+    return 1;
+  } else {
+    memcpy(raw_header, in_net_buffer, IVF_FRAME_HDR_SZ);
+    frame_size = mem_get_le32(raw_header);
+    // info("Frame Size (%u)\n", (unsigned int)frame_size);
+
+    if (frame_size > 256 * 1024 * 1024) {
+      warn("Read invalid frame size (%u)\n", (unsigned int)frame_size);
+      frame_size = 0;
+      return 1;
+    }
+
+    size_t hdr_size = (size_t)IVF_FRAME_HDR_SZ;
+    if (frame_size > *buffer_size) {
+      // info("Expanding Buffer size");
+      uint8_t *new_buffer = realloc(*buffer, 2 * frame_size);
+      if (new_buffer) {
+        *buffer = new_buffer;
+        *buffer_size = 2 * frame_size;
+      } else {
+        warn("Failed to allocate compressed data buffer\n");
+        frame_size = 0;
+        return 1;
+      }
+    }
+
+    // size_t in_size = in_frame_buffer_size - IVF_FRAME_HDR_SZ;
+    // info("Buf Size (%u)\n", (unsigned int)in_net_buffer_size);
+
+    // info("Header Size (%u)\n", (unsigned int)hdr_size);
+    if (frame_size <= in_net_buffer_size) {
+      memcpy(*buffer, in_net_buffer + hdr_size, frame_size);
+      *bytes_read = frame_size;
+      return 0;
+    } else {
+      // warn("Failed to read full frame\n");
+      return 1;
+    }
+  }
+}

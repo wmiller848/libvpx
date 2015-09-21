@@ -24,6 +24,9 @@ extern "C" {
 // Bits Per MB at different Q (Multiplied by 512)
 #define BPER_MB_NORMBITS    9
 
+#define MIN_GF_INTERVAL     4
+#define MAX_GF_INTERVAL     16
+
 typedef enum {
   INTER_NORMAL = 0,
   INTER_HIGH = 1,
@@ -139,6 +142,9 @@ typedef struct {
   int frame_width[FRAME_SCALE_STEPS];
   int frame_height[FRAME_SCALE_STEPS];
   int rf_level_maxq[RATE_FACTOR_LEVELS];
+
+  uint64_t avg_source_sad;
+  int high_source_sad;
 } RATE_CONTROL;
 
 struct VP9_COMP;
@@ -154,6 +160,12 @@ int vp9_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
 double vp9_convert_qindex_to_q(int qindex, vpx_bit_depth_t bit_depth);
 
 void vp9_rc_init_minq_luts(void);
+
+int vp9_rc_get_default_min_gf_interval(int width, int height, double framerate);
+// Note vp9_rc_get_default_max_gf_interval() requires the min_gf_interval to
+// be passed in to ensure that the max_gf_interval returned is at least as bis
+// as that.
+int vp9_rc_get_default_max_gf_interval(double framerate, int min_frame_rate);
 
 // Generally at the high level, the following flow is expected
 // to be enforced for rate control:
@@ -246,6 +258,10 @@ void vp9_rc_set_gf_interval_range(const struct VP9_COMP *const cpi,
 void vp9_set_target_rate(struct VP9_COMP *cpi);
 
 int vp9_resize_one_pass_cbr(struct VP9_COMP *cpi);
+
+void vp9_avg_source_sad(struct VP9_COMP *cpi);
+
+int vp9_encodedframe_overshoot(struct VP9_COMP *cpi, int frame_size, int *q);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -22,8 +22,10 @@ clean:: .DEFAULT
 exampletest: .DEFAULT
 install:: .DEFAULT
 test:: .DEFAULT
+test-no-data-check:: .DEFAULT
 testdata:: .DEFAULT
 utiltest: .DEFAULT
+exampletest-no-data-check utiltest-no-data-check: .DEFAULT
 
 
 # Note: md5sum is not installed on OS X, but openssl is. Openssl may not be
@@ -113,6 +115,9 @@ test::
 testdata::
 .PHONY: utiltest
 utiltest:
+.PHONY: test-no-data-check exampletest-no-data-check utiltest-no-data-check
+test-no-data-check::
+exampletest-no-data-check utiltest-no-data-check:
 
 # Add compiler flags for intrinsic files
 ifeq ($(TOOLCHAIN), x86-os2-gcc)
@@ -135,6 +140,8 @@ $(BUILD_PFX)%_avx.c.d: CFLAGS += -mavx $(STACKREALIGN)
 $(BUILD_PFX)%_avx.c.o: CFLAGS += -mavx $(STACKREALIGN)
 $(BUILD_PFX)%_avx2.c.d: CFLAGS += -mavx2 $(STACKREALIGN)
 $(BUILD_PFX)%_avx2.c.o: CFLAGS += -mavx2 $(STACKREALIGN)
+$(BUILD_PFX)%vp9_reconintra.c.d: CFLAGS += $(STACKREALIGN)
+$(BUILD_PFX)%vp9_reconintra.c.o: CFLAGS += $(STACKREALIGN)
 
 $(BUILD_PFX)%.c.d: %.c
 	$(if $(quiet),@echo "    [DEP] $@")
@@ -280,7 +287,7 @@ define archive_template
 # for creating them.
 $(1):
 	$(if $(quiet),@echo "    [AR] $$@")
-	$(qexec)$$(AR) $$(ARFLAGS) $$@ $$?
+	$(qexec)$$(AR) $$(ARFLAGS) $$@ $$^
 endef
 
 define so_template

@@ -16,13 +16,17 @@
 #include "./vpx_config.h"
 #include "vpx/internal/vpx_codec_internal.h"
 #include "vpx/vp8cx.h"
+#if CONFIG_INTERNAL_STATS
+#include "vpx_dsp/ssim.h"
+#endif
+#include "vpx_dsp/variance.h"
+#include "vpx_util/vpx_thread.h"
 
 #include "vp9/common/vp9_alloccommon.h"
 #include "vp9/common/vp9_ppflags.h"
 #include "vp9/common/vp9_entropymode.h"
 #include "vp9/common/vp9_thread_common.h"
 #include "vp9/common/vp9_onyxc_int.h"
-#include "vp9/common/vp9_thread.h"
 
 #include "vp9/encoder/vp9_aq_cyclicrefresh.h"
 #include "vp9/encoder/vp9_context_tree.h"
@@ -34,13 +38,9 @@
 #include "vp9/encoder/vp9_quantize.h"
 #include "vp9/encoder/vp9_ratectrl.h"
 #include "vp9/encoder/vp9_rd.h"
-#if CONFIG_INTERNAL_STATS
-#include "vp9/encoder/vp9_ssim.h"
-#endif
 #include "vp9/encoder/vp9_speed_features.h"
 #include "vp9/encoder/vp9_svc_layercontext.h"
 #include "vp9/encoder/vp9_tokenize.h"
-#include "vp9/encoder/vp9_variance.h"
 
 #if CONFIG_VP9_TEMPORAL_DENOISING
 #include "vp9/encoder/vp9_denoiser.h"
@@ -50,14 +50,12 @@
 extern "C" {
 #endif
 
-#define DEFAULT_GF_INTERVAL         10
-
 typedef struct {
   int nmvjointcost[MV_JOINTS];
   int nmvcosts[2][MV_VALS];
   int nmvcosts_hp[2][MV_VALS];
 
-  vp9_prob segment_pred_probs[PREDICTION_PROBS];
+  vpx_prob segment_pred_probs[PREDICTION_PROBS];
 
   unsigned char *last_frame_seg_map_copy;
 
@@ -219,6 +217,9 @@ typedef struct VP9EncoderConfig {
   int arnr_max_frames;
   int arnr_strength;
 
+  int min_gf_interval;
+  int max_gf_interval;
+
   int tile_columns;
   int tile_rows;
 
@@ -237,6 +238,7 @@ typedef struct VP9EncoderConfig {
   int use_highbitdepth;
 #endif
   vpx_color_space_t color_space;
+  int color_range;
   VP9E_TEMPORAL_LAYERING_MODE temporal_layering_mode;
 } VP9EncoderConfig;
 
@@ -254,7 +256,6 @@ typedef struct TileDataEnc {
 typedef struct RD_COUNTS {
   vp9_coeff_count coef_counts[TX_SIZES][PLANE_TYPES];
   int64_t comp_pred_diff[REFERENCE_MODES];
-  int64_t tx_select_diff[TX_MODES];
   int64_t filter_diff[SWITCHABLE_FILTER_CONTEXTS];
 } RD_COUNTS;
 
@@ -291,6 +292,7 @@ typedef struct IMAGE_STAT {
 typedef struct VP9_COMP {
   QUANTS quants;
   ThreadData td;
+  MB_MODE_INFO_EXT *mbmi_ext_base;
   DECLARE_ALIGNED(16, int16_t, y_dequant[QINDEX_RANGE][8]);
   DECLARE_ALIGNED(16, int16_t, uv_dequant[QINDEX_RANGE][8]);
   VP9_COMMON common;
@@ -496,7 +498,7 @@ typedef struct VP9_COMP {
 
   // Multi-threading
   int num_workers;
-  VP9Worker *workers;
+  VPxWorker *workers;
   struct EncWorkerData *tile_thr_data;
   VP9LfSync lf_row_sync;
 } VP9_COMP;
@@ -604,8 +606,6 @@ int64_t vp9_highbd_get_y_sse(const YV12_BUFFER_CONFIG *a,
                              const YV12_BUFFER_CONFIG *b);
 #endif  // CONFIG_VP9_HIGHBITDEPTH
 
-void vp9_alloc_compressor_data(VP9_COMP *cpi);
-
 void vp9_scale_references(VP9_COMP *cpi);
 
 void vp9_update_reference_frames(VP9_COMP *cpi);
@@ -614,7 +614,8 @@ void vp9_set_high_precision_mv(VP9_COMP *cpi, int allow_high_precision_mv);
 
 YV12_BUFFER_CONFIG *vp9_scale_if_required(VP9_COMMON *cm,
                                           YV12_BUFFER_CONFIG *unscaled,
-                                          YV12_BUFFER_CONFIG *scaled);
+                                          YV12_BUFFER_CONFIG *scaled,
+                                          int use_normative_scaler);
 
 void vp9_apply_encoding_flags(VP9_COMP *cpi, vpx_enc_frame_flags_t flags);
 

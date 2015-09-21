@@ -73,6 +73,7 @@ Build options:
   --target=TARGET             target platform tuple [generic-gnu]
   --cpu=CPU                   optimize for a specific cpu rather than a family
   --extra-cflags=ECFLAGS      add ECFLAGS to CFLAGS [$CFLAGS]
+  --extra-cxxflags=ECXXFLAGS  add ECXXFLAGS to CXXFLAGS [$CXXFLAGS]
   ${toggle_extra_warnings}    emit harmless warnings (always non-fatal)
   ${toggle_werror}            treat warnings as errors, if possible
                               (not available with all compilers)
@@ -337,6 +338,10 @@ check_add_cflags() {
   check_cflags "$@" && add_cflags_only "$@"
 }
 
+check_add_cxxflags() {
+  check_cxxflags "$@" && add_cxxflags_only "$@"
+}
+
 check_add_asflags() {
   log add_asflags "$@"
   add_asflags "$@"
@@ -502,6 +507,9 @@ process_common_cmdline() {
         ;;
       --extra-cflags=*)
         extra_cflags="${optval}"
+        ;;
+      --extra-cxxflags=*)
+        extra_cxxflags="${optval}"
         ;;
       --enable-?*|--disable-?*)
         eval `echo "$opt" | sed 's/--/action=/;s/-/ option=/;s/-/_/g'`
@@ -1037,7 +1045,7 @@ EOF
             check_add_ldflags -mfp64
             ;;
           i6400)
-            check_add_cflags -mips64r6 -mabi=64 -funroll-loops -msched-weight 
+            check_add_cflags -mips64r6 -mabi=64 -funroll-loops -msched-weight
             check_add_cflags  -mload-store-pairs -mhard-float -mfp64
             check_add_asflags -mips64r6 -mabi=64 -mhard-float -mfp64
             check_add_ldflags -mips64r6 -mabi=64 -mfp64
@@ -1067,7 +1075,9 @@ EOF
           CROSS=${CROSS:-g}
           ;;
         os2)
+          disable_feature pic
           AS=${AS:-nasm}
+          add_ldflags -Zhigh-mem
           ;;
       esac
 
@@ -1308,12 +1318,6 @@ EOF
   if enabled linux; then
     add_cflags -D_LARGEFILE_SOURCE
     add_cflags -D_FILE_OFFSET_BITS=64
-  fi
-
-  # append any user defined extra cflags
-  if [ -n "${extra_cflags}" ] ; then
-    check_add_cflags ${extra_cflags} || \
-    die "Requested extra CFLAGS '${extra_cflags}' not supported by compiler"
   fi
 }
 

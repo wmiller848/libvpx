@@ -37,6 +37,7 @@ Advanced options:
   ${toggle_vp9_highbitdepth}      use VP9 high bit depth (10/12) profiles
   ${toggle_vp8}                   VP8 codec support
   ${toggle_vp9}                   VP9 codec support
+  ${toggle_vp10}                  VP10 codec support
   ${toggle_internal_stats}        output of encoder internal stats for debug, if supported (encoders)
   ${toggle_postproc}              postprocessing
   ${toggle_vp9_postproc}          vp9 specific postprocessing
@@ -106,6 +107,7 @@ all_platforms="${all_platforms} armv7-linux-gcc"     #neon Cortex-A8
 all_platforms="${all_platforms} armv7-none-rvct"     #neon Cortex-A8
 all_platforms="${all_platforms} armv7-win32-vs11"
 all_platforms="${all_platforms} armv7-win32-vs12"
+all_platforms="${all_platforms} armv7-win32-vs14"
 all_platforms="${all_platforms} armv7s-darwin-gcc"
 all_platforms="${all_platforms} mips32-linux-gcc"
 all_platforms="${all_platforms} mips64-linux-gcc"
@@ -132,6 +134,8 @@ all_platforms="${all_platforms} x86-win32-vs9"
 all_platforms="${all_platforms} x86-win32-vs10"
 all_platforms="${all_platforms} x86-win32-vs11"
 all_platforms="${all_platforms} x86-win32-vs12"
+all_platforms="${all_platforms} x86-win32-vs14"
+all_platforms="${all_platforms} x86_64-android-gcc"
 all_platforms="${all_platforms} x86_64-darwin9-gcc"
 all_platforms="${all_platforms} x86_64-darwin10-gcc"
 all_platforms="${all_platforms} x86_64-darwin11-gcc"
@@ -148,6 +152,7 @@ all_platforms="${all_platforms} x86_64-win64-vs9"
 all_platforms="${all_platforms} x86_64-win64-vs10"
 all_platforms="${all_platforms} x86_64-win64-vs11"
 all_platforms="${all_platforms} x86_64-win64-vs12"
+all_platforms="${all_platforms} x86_64-win64-vs14"
 all_platforms="${all_platforms} generic-gnu"
 
 # all_targets is a list of all targets that can be configured
@@ -187,6 +192,10 @@ fi
 # disable codecs when their source directory does not exist
 [ -d "${source_path}/vp8" ] || disable_feature vp8
 [ -d "${source_path}/vp9" ] || disable_feature vp9
+[ -d "${source_path}/vp10" ] || disable_feature vp10
+
+# disable vp10 codec by default
+disable_feature vp10
 
 # install everything except the sources, by default. sources will have
 # to be enabled when doing dist builds, since that's no longer a common
@@ -208,10 +217,13 @@ CODECS="
     vp8_decoder
     vp9_encoder
     vp9_decoder
+    vp10_encoder
+    vp10_decoder
 "
 CODEC_FAMILIES="
     vp8
     vp9
+    vp10
 "
 
 ARCH_LIST="
@@ -252,6 +264,7 @@ EXPERIMENT_LIST="
     spatial_svc
     fp_mb_stats
     emulate_hardware
+    misc_fixes
 "
 CONFIG_LIST="
     dependency_tracking
@@ -638,7 +651,7 @@ process_toolchain() {
                  VCPROJ_SFX=vcproj
                  gen_vcproj_cmd=${source_path}/build/make/gen_msvs_proj.sh
                  ;;
-             10|11|12)
+             10|11|12|14)
                  VCPROJ_SFX=vcxproj
                  gen_vcproj_cmd=${source_path}/build/make/gen_msvs_vcxproj.sh
                  enabled werror && gen_vcproj_cmd="${gen_vcproj_cmd} --enable-werror"
@@ -704,6 +717,16 @@ EOF
     esac
     # libwebm needs to be linked with C++ standard library
     enabled webm_io && LD=${CXX}
+
+    # append any user defined extra cflags
+    if [ -n "${extra_cflags}" ] ; then
+        check_add_cflags ${extra_cflags} || \
+        die "Requested extra CFLAGS '${extra_cflags}' not supported by compiler"
+    fi
+    if [ -n "${extra_cxxflags}" ]; then
+        check_add_cxxflags ${extra_cxxflags} || \
+        die "Requested extra CXXFLAGS '${extra_cxxflags}' not supported by compiler"
+    fi
 }
 
 

@@ -15,7 +15,6 @@
 #include "vp9/common/vp9_onyxc_int.h"
 #include "vp9/common/vp9_quant_common.h"
 #include "vp9/common/vp9_reconinter.h"
-#include "vp9/common/vp9_systemdependent.h"
 #include "vp9/encoder/vp9_extend.h"
 #include "vp9/encoder/vp9_firstpass.h"
 #include "vp9/encoder/vp9_mcomp.h"
@@ -24,6 +23,7 @@
 #include "vp9/encoder/vp9_ratectrl.h"
 #include "vp9/encoder/vp9_segmentation.h"
 #include "vp9/encoder/vp9_temporal_filter.h"
+#include "vpx_dsp/vpx_dsp_common.h"
 #include "vpx_mem/vpx_mem.h"
 #include "vpx_ports/mem.h"
 #include "vpx_ports/vpx_timer.h"
@@ -46,7 +46,7 @@ static void temporal_filter_predictors_mb_c(MACROBLOCKD *xd,
   const int which_mv = 0;
   const MV mv = { mv_row, mv_col };
   const InterpKernel *const kernel =
-    vp9_get_interp_kernel(xd->mi[0]->mbmi.interp_filter);
+    vp9_filter_kernels[xd->mi[0]->mbmi.interp_filter];
 
   enum mv_precision mv_precision_uv;
   int uv_stride;
@@ -217,7 +217,8 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
                                               int stride) {
   MACROBLOCK *const x = &cpi->td.mb;
   MACROBLOCKD *const xd = &x->e_mbd;
-  const MV_SPEED_FEATURES *const mv_sf = &cpi->sf.mv;
+  MV_SPEED_FEATURES *const mv_sf = &cpi->sf.mv;
+  const SEARCH_METHODS old_search_method = mv_sf->search_method;
   int step_param;
   int sadpb = x->sadperbit16;
   int bestsme = INT_MAX;
@@ -243,12 +244,13 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
   xd->plane[0].pre[0].stride = stride;
 
   step_param = mv_sf->reduce_first_step_size;
-  step_param = MIN(step_param, MAX_MVSEARCH_STEPS - 2);
+  step_param = VPXMIN(step_param, MAX_MVSEARCH_STEPS - 2);
 
-  // Ignore mv costing by sending NULL pointer instead of cost arrays
-  vp9_hex_search(x, &best_ref_mv1_full, step_param, sadpb, 1,
-                 cond_cost_list(cpi, cost_list),
-                 &cpi->fn_ptr[BLOCK_16X16], 0, &best_ref_mv1, ref_mv);
+  mv_sf->search_method = HEX;
+  vp9_full_pixel_search(cpi, x, BLOCK_16X16, &best_ref_mv1_full, step_param,
+                        sadpb, cond_cost_list(cpi, cost_list), &best_ref_mv1,
+                        ref_mv, 0, 0);
+  mv_sf->search_method = old_search_method;
 
   // Ignore mv costing by sending NULL pointer instead of cost array
   bestsme = cpi->find_fractional_mv_step(x, ref_mv,
@@ -706,7 +708,7 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
       for (frame = 0; frame < frames_to_blur; ++frame) {
         if (cm->mi_cols * MI_SIZE != frames[frame]->y_width ||
             cm->mi_rows * MI_SIZE != frames[frame]->y_height) {
-          if (vp9_realloc_frame_buffer(&cpi->svc.scaled_frames[frame_used],
+          if (vpx_realloc_frame_buffer(&cpi->svc.scaled_frames[frame_used],
                                        cm->width, cm->height,
                                        cm->subsampling_x, cm->subsampling_y,
 #if CONFIG_VP9_HIGHBITDEPTH
@@ -719,7 +721,7 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
                                "Failed to reallocate alt_ref_buffer");
           }
           frames[frame] = vp9_scale_if_required(
-              cm, frames[frame], &cpi->svc.scaled_frames[frame_used]);
+              cm, frames[frame], &cpi->svc.scaled_frames[frame_used], 0);
           ++frame_used;
         }
       }

@@ -62,6 +62,7 @@
 
 #define VP8_FOURCC 0x30385056
 #define VP9_FOURCC 0x30395056
+#define VP10_FOURCC 0x303a5056
 
 enum VideoFileType {
   FILE_TYPE_RAW,
@@ -116,6 +117,7 @@ FILE *set_binary_mode(FILE *stream);
 void die(const char *fmt, ...) VPX_NO_RETURN;
 void fatal(const char *fmt, ...) VPX_NO_RETURN;
 void warn(const char *fmt, ...);
+void info(const char *fmt, ...);
 
 void die_codec(vpx_codec_ctx_t *ctx, const char *s) VPX_NO_RETURN;
 
@@ -150,7 +152,7 @@ int vpx_img_read(vpx_image_t *img, FILE *file);
 
 double sse_to_psnr(double samples, double peak, double mse);
 
-#if CONFIG_VP9 && CONFIG_VP9_HIGHBITDEPTH
+#if CONFIG_VP9_HIGHBITDEPTH
 void vpx_img_upshift(vpx_image_t *dst, vpx_image_t *src, int input_shift);
 void vpx_img_downshift(vpx_image_t *dst, vpx_image_t *src, int down_shift);
 void vpx_img_truncate_16_to_8(vpx_image_t *dst, vpx_image_t *src);

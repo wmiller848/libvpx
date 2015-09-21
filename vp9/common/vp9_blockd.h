@@ -14,6 +14,7 @@
 
 #include "./vpx_config.h"
 
+#include "vpx_dsp/vpx_dsp_common.h"
 #include "vpx_ports/mem.h"
 #include "vpx_scale/yv12config.h"
 
@@ -23,6 +24,7 @@
 #include "vp9/common/vp9_mv.h"
 #include "vp9/common/vp9_scale.h"
 #include "vp9/common/vp9_seg_common.h"
+#include "vp9/common/vp9_tile_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -80,12 +82,6 @@ typedef struct {
 
   // TODO(slavarnway): Delete and use bmi[3].as_mv[] instead.
   int_mv mv[2];
-
-#if CONFIG_VP9_ENCODER
-  // TODO(slavarnway): Move to encoder
-  int_mv ref_mvs[MAX_REF_FRAMES][MAX_MV_REF_CANDIDATES];
-  uint8_t mode_context[MAX_REF_FRAMES];
-#endif
 } MB_MODE_INFO;
 
 typedef struct MODE_INFO {
@@ -133,6 +129,11 @@ struct macroblockd_plane {
   ENTROPY_CONTEXT *left_context;
   int16_t seg_dequant[MAX_SEGMENTS][2];
 
+  // number of 4x4s in current block
+  uint16_t n4_w, n4_h;
+  // log2 of n4_w, n4_h
+  uint8_t n4_wl, n4_hl;
+
   // encoder
   const int16_t *dequant;
 };
@@ -149,7 +150,12 @@ typedef struct RefBuffer {
 
 typedef struct macroblockd {
   struct macroblockd_plane plane[MAX_MB_PLANE];
+  uint8_t bmode_blocks_wl;
+  uint8_t bmode_blocks_hl;
+
   FRAME_COUNTS *counts;
+  TileInfo tile;
+
   int mi_stride;
 
   MODE_INFO **mi;
@@ -161,7 +167,7 @@ typedef struct macroblockd {
   int up_available;
   int left_available;
 
-  const vp9_prob (*partition_probs)[PARTITION_TYPES - 1];
+  const vpx_prob (*partition_probs)[PARTITION_TYPES - 1];
 
   /* Distance of MB away from frame edges */
   int mb_to_left_edge;
@@ -188,9 +194,6 @@ typedef struct macroblockd {
   /* Bit depth: 8, 10, 12 */
   int bd;
 #endif
-
-  /* dqcoeff are shared by all the planes. So planes must be decoded serially */
-  DECLARE_ALIGNED(16, tran_low_t, dqcoeff[64 * 64]);
 
   int lossless;
   int corrupted;
@@ -233,7 +236,7 @@ static INLINE TX_SIZE get_uv_tx_size_impl(TX_SIZE y_tx_size, BLOCK_SIZE bsize,
     return TX_4X4;
   } else {
     const BLOCK_SIZE plane_bsize = ss_size_lookup[bsize][xss][yss];
-    return MIN(y_tx_size, max_txsize_lookup[plane_bsize]);
+    return VPXMIN(y_tx_size, max_txsize_lookup[plane_bsize]);
   }
 }
 
@@ -260,7 +263,7 @@ static INLINE void reset_skip_context(MACROBLOCKD *xd, BLOCK_SIZE bsize) {
   }
 }
 
-static INLINE const vp9_prob *get_y_mode_probs(const MODE_INFO *mi,
+static INLINE const vpx_prob *get_y_mode_probs(const MODE_INFO *mi,
                                                const MODE_INFO *above_mi,
                                                const MODE_INFO *left_mi,
                                                int block) {

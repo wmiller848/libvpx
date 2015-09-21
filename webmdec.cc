@@ -94,7 +94,7 @@ int file_is_webm(struct WebmInputContext *webm_ctx,
     }
   }
 
-  if (video_track == NULL) {
+  if (video_track == NULL || video_track->GetCodecId() == NULL) {
     rewind_and_reset(webm_ctx, vpx_ctx);
     return 0;
   }
@@ -103,6 +103,8 @@ int file_is_webm(struct WebmInputContext *webm_ctx,
     vpx_ctx->fourcc = VP8_FOURCC;
   } else if (!strncmp(video_track->GetCodecId(), "V_VP9", 5)) {
     vpx_ctx->fourcc = VP9_FOURCC;
+  } else if (!strncmp(video_track->GetCodecId(), "V_VP10", 6)) {
+    vpx_ctx->fourcc = VP10_FOURCC;
   } else {
     rewind_and_reset(webm_ctx, vpx_ctx);
     return 0;

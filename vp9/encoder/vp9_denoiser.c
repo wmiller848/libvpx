@@ -10,6 +10,8 @@
 
 #include <assert.h>
 #include <limits.h>
+#include "./vpx_dsp_rtcd.h"
+#include "vpx_dsp/vpx_dsp_common.h"
 #include "vpx_scale/yv12config.h"
 #include "vpx/vpx_integer.h"
 #include "vp9/common/vp9_reconinter.h"
@@ -60,10 +62,6 @@ static int sse_diff_thresh(BLOCK_SIZE bs, int increase_denoising,
   } else {
     return (1 << num_pels_log2_lookup[bs]) * 20;
   }
-}
-
-int total_adj_strong_thresh(BLOCK_SIZE bs, int increase_denoising) {
-  return (1 << num_pels_log2_lookup[bs]) * (increase_denoising ? 3 : 2);
 }
 
 static int total_adj_weak_thresh(BLOCK_SIZE bs, int increase_denoising) {
@@ -123,10 +121,10 @@ int vp9_denoiser_filter_c(const uint8_t *sig, int sig_stride,
             adj = adj_val[2];
         }
         if (diff > 0) {
-          avg[c] = MIN(UINT8_MAX, sig[c] + adj);
+          avg[c] = VPXMIN(UINT8_MAX, sig[c] + adj);
           total_adj += adj;
         } else {
-          avg[c] = MAX(0, sig[c] - adj);
+          avg[c] = VPXMAX(0, sig[c] - adj);
           total_adj -= adj;
         }
       }
@@ -163,13 +161,13 @@ int vp9_denoiser_filter_c(const uint8_t *sig, int sig_stride,
         // Diff positive means we made positive adjustment above
         // (in first try/attempt), so now make negative adjustment to bring
         // denoised signal down.
-        avg[c] = MAX(0, avg[c] - adj);
+        avg[c] = VPXMAX(0, avg[c] - adj);
         total_adj -= adj;
       } else {
         // Diff negative means we made negative adjustment above
         // (in first try/attempt), so now make positive adjustment to bring
         // denoised signal up.
-        avg[c] = MIN(UINT8_MAX, avg[c] + adj);
+        avg[c] = VPXMIN(UINT8_MAX, avg[c] + adj);
         total_adj += adj;
       }
     }
@@ -336,12 +334,12 @@ void vp9_denoiser_denoise(VP9_DENOISER *denoiser, MACROBLOCK *mb,
   }
 
   if (decision == FILTER_BLOCK) {
-    vp9_convolve_copy(avg_start, avg.y_stride, src.buf, src.stride,
+    vpx_convolve_copy(avg_start, avg.y_stride, src.buf, src.stride,
                       NULL, 0, NULL, 0,
                       num_4x4_blocks_wide_lookup[bs] << 2,
                       num_4x4_blocks_high_lookup[bs] << 2);
   } else {  // COPY_BLOCK
-    vp9_convolve_copy(src.buf, src.stride, avg_start, avg.y_stride,
+    vpx_convolve_copy(src.buf, src.stride, avg_start, avg.y_stride,
                       NULL, 0, NULL, 0,
                       num_4x4_blocks_wide_lookup[bs] << 2,
                       num_4x4_blocks_high_lookup[bs] << 2);
@@ -434,7 +432,7 @@ int vp9_denoiser_alloc(VP9_DENOISER *denoiser, int width, int height,
   assert(denoiser != NULL);
 
   for (i = 0; i < MAX_REF_FRAMES; ++i) {
-    fail = vp9_alloc_frame_buffer(&denoiser->running_avg_y[i], width, height,
+    fail = vpx_alloc_frame_buffer(&denoiser->running_avg_y[i], width, height,
                                   ssx, ssy,
 #if CONFIG_VP9_HIGHBITDEPTH
                                   use_highbitdepth,
@@ -449,7 +447,7 @@ int vp9_denoiser_alloc(VP9_DENOISER *denoiser, int width, int height,
 #endif
   }
 
-  fail = vp9_alloc_frame_buffer(&denoiser->mc_running_avg_y, width, height,
+  fail = vpx_alloc_frame_buffer(&denoiser->mc_running_avg_y, width, height,
                                 ssx, ssy,
 #if CONFIG_VP9_HIGHBITDEPTH
                                 use_highbitdepth,
@@ -475,9 +473,9 @@ void vp9_denoiser_free(VP9_DENOISER *denoiser) {
     return;
   }
   for (i = 0; i < MAX_REF_FRAMES; ++i) {
-    vp9_free_frame_buffer(&denoiser->running_avg_y[i]);
+    vpx_free_frame_buffer(&denoiser->running_avg_y[i]);
   }
-  vp9_free_frame_buffer(&denoiser->mc_running_avg_y);
+  vpx_free_frame_buffer(&denoiser->mc_running_avg_y);
 }
 
 #ifdef OUTPUT_YUV_DENOISED

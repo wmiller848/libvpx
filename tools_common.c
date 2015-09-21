@@ -16,11 +16,11 @@
 
 #include "./tools_common.h"
 
-#if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER
+#if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER || CONFIG_VP10_ENCODER
 #include "vpx/vp8cx.h"
 #endif
 
-#if CONFIG_VP8_DECODER || CONFIG_VP9_DECODER
+#if CONFIG_VP8_DECODER || CONFIG_VP9_DECODER || CONFIG_VP10_DECODER
 #include "vpx/vp8dx.h"
 #endif
 
@@ -67,6 +67,10 @@ void fatal(const char *fmt, ...) {
 
 void warn(const char *fmt, ...) {
   LOG_ERROR("Warning");
+}
+
+void info(const char *fmt, ...) {
+  LOG_ERROR("Info");
 }
 
 void die_codec(vpx_codec_ctx_t *ctx, const char *s) {
@@ -130,7 +134,13 @@ int read_yuv_frame(struct VpxInputContext *input_ctx, vpx_image_t *yuv_frame) {
   return shortread;
 }
 
+#if CONFIG_ENCODERS
+
 static const VpxInterface vpx_encoders[] = {
+#if CONFIG_VP10_ENCODER
+  {"vp10", VP10_FOURCC, &vpx_codec_vp10_cx},
+#endif
+
 #if CONFIG_VP8_ENCODER
   {"vp8", VP8_FOURCC, &vpx_codec_vp8_cx},
 #endif
@@ -160,6 +170,10 @@ const VpxInterface *get_vpx_encoder_by_name(const char *name) {
   return NULL;
 }
 
+#endif  // CONFIG_ENCODERS
+
+#if CONFIG_DECODERS
+
 static const VpxInterface vpx_decoders[] = {
 #if CONFIG_VP8_DECODER
   {"vp8", VP8_FOURCC, &vpx_codec_vp8_dx},
@@ -167,6 +181,10 @@ static const VpxInterface vpx_decoders[] = {
 
 #if CONFIG_VP9_DECODER
   {"vp9", VP9_FOURCC, &vpx_codec_vp9_dx},
+#endif
+
+#if CONFIG_VP10_DECODER
+  {"vp10", VP10_FOURCC, &vpx_codec_vp10_dx},
 #endif
 };
 
@@ -201,6 +219,8 @@ const VpxInterface *get_vpx_decoder_by_fourcc(uint32_t fourcc) {
 
   return NULL;
 }
+
+#endif  // CONFIG_DECODERS
 
 // TODO(dkovalev): move this function to vpx_image.{c, h}, so it will be part
 // of vpx_image_t support
@@ -270,7 +290,7 @@ double sse_to_psnr(double samples, double peak, double sse) {
 }
 
 // TODO(debargha): Consolidate the functions below into a separate file.
-#if CONFIG_VP9 && CONFIG_VP9_HIGHBITDEPTH
+#if CONFIG_VP9_HIGHBITDEPTH
 static void highbd_img_upshift(vpx_image_t *dst, vpx_image_t *src,
                                int input_shift) {
   // Note the offset is 1 less than half.
@@ -392,7 +412,7 @@ void vpx_img_truncate_16_to_8(vpx_image_t *dst, vpx_image_t *src) {
           (uint16_t *)(src->planes[plane] + y * src->stride[plane]);
       uint8_t *p_dst = dst->planes[plane] + y * dst->stride[plane];
       for (x = 0; x < w; x++) {
-        *p_dst++ = *p_src++;
+        *p_dst++ = (uint8_t)(*p_src++);
       }
     }
   }
@@ -483,4 +503,4 @@ void vpx_img_downshift(vpx_image_t *dst, vpx_image_t *src,
     lowbd_img_downshift(dst, src, down_shift);
   }
 }
-#endif  // CONFIG_VP9 && CONFIG_VP9_HIGHBITDEPTH
+#endif  // CONFIG_VP9_HIGHBITDEPTH

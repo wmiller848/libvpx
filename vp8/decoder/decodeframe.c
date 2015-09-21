@@ -34,6 +34,7 @@
 #include "vp8/common/threading.h"
 #include "decoderthreading.h"
 #include "dboolhuff.h"
+#include "vpx_dsp/vpx_dsp_common.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -635,7 +636,7 @@ static void decode_mb_rows(VP8D_COMP *pbi)
             xd->dst.v_buffer = dst_buffer[2] + recon_uvoffset;
 
             if (xd->mode_info_context->mbmi.ref_frame >= LAST_FRAME) {
-              MV_REFERENCE_FRAME ref = xd->mode_info_context->mbmi.ref_frame;
+              const MV_REFERENCE_FRAME ref = xd->mode_info_context->mbmi.ref_frame;
               xd->pre.y_buffer = ref_buffer[ref][0] + recon_yoffset;
               xd->pre.u_buffer = ref_buffer[ref][1] + recon_uvoffset;
               xd->pre.v_buffer = ref_buffer[ref][2] + recon_uvoffset;
@@ -1021,7 +1022,7 @@ int vp8_decode_frame(VP8D_COMP *pbi)
         const unsigned char *clear = data;
         if (pbi->decrypt_cb)
         {
-            int n = (int)MIN(sizeof(clear_buffer), data_end - data);
+            int n = (int)VPXMIN(sizeof(clear_buffer), data_end - data);
             pbi->decrypt_cb(pbi->decrypt_state, data, clear_buffer, n);
             clear = clear_buffer;
         }

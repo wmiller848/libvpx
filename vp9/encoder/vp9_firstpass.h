@@ -53,6 +53,7 @@ typedef struct {
   double pcnt_neutral;
   double intra_skip_pct;
   double inactive_zone_rows;  // Image mask rows top and bottom.
+  double inactive_zone_cols;  // Image mask columns at left and right edges.
   double MVr;
   double mvr_abs;
   double MVc;
@@ -151,8 +152,6 @@ void vp9_twopass_postencode_update(struct VP9_COMP *cpi);
 
 // Post encode update of the rate control parameters for 2-pass
 void vp9_twopass_postencode_update(struct VP9_COMP *cpi);
-
-void vp9_init_subsampling(struct VP9_COMP *cpi);
 
 void calculate_coded_size(struct VP9_COMP *cpi,
                           int *scaled_frame_width,
